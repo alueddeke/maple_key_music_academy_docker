@@ -92,28 +92,10 @@ The Nginx setup includes:
 - Gzip compression
 - Security headers
 
-## 🔒 Security
 
-- Environment files with secrets are gitignored
-- Example files provided for easy setup
-- Production configuration includes security headers
-- SSL/TLS support for production deployments
-
-## 📝 Notes
+## Notes
 
 - Make sure to replace all placeholder values in environment files
 - The production setup assumes SSL certificates are available
 - Database data persists in Docker volumes
 - Logs are available through Docker Compose
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test with both development and production configurations
-5. Submit a pull request
-
-## 📞 Support
-
-For questions or issues, please contact the development team or create an issue in the repository.
