@@ -1,0 +1,31 @@
+# Environment files with secrets
+.envs/env.dev
+.envs/env.prod
+
+# Docker volumes and data
+volumes/
+data/
+
+# Logs
+*.log
+logs/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp

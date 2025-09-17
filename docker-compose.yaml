@@ -1,0 +1,72 @@
+# Docker Compose for Maple Key Music Academy - Development
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:14
+    container_name: maple_key_db
+    env_file:
+      - ./.envs/env.dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"  # Exposed for development tools
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maple_key_user -d maple_key_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Nginx Reverse Proxy
+  nginx:
+    build:
+      context: nginx
+      dockerfile: Dockerfile.dev
+    restart: always
+    container_name: maple_key_nginx
+    ports:
+      - "8000:80"
+    depends_on:
+      - api
+      - frontend
+
+  # Django Backend API
+  api:
+    build:
+      context: ../maple_key_music_academy_backend
+      dockerfile: Dockerfile
+    container_name: maple_key_api
+    env_file:
+      - ./.envs/env.dev
+    volumes:
+      - ../maple_key_music_academy_backend:/usr/app/
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: |
+      bash -c "
+      python3 manage.py migrate --no-input && 
+      python3 manage.py collectstatic --noinput &&
+      python3 manage.py runserver 0.0.0.0:8000"
+
+  # React/Vite Frontend
+  frontend:
+    build:
+      context: ../maple-key-music-academy-frontend
+      dockerfile: Dockerfile
+    container_name: maple_key_frontend
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8000/api
+      - VITE_GOOGLE_CLIENT_ID=578681672265-r7jpu2dumv6129pkapljb7j8ftk29it5.apps.googleusercontent.com
+      - WATCHPACK_POLLING=true
+      - FAST_REFRESH=true
+    volumes:
+      - ../maple-key-music-academy-frontend:/usr/app
+      - node_modules:/usr/app/node_modules
+      - vite_cache:/usr/app/.vite/cache
+
+volumes:
+  postgres_data:
+  node_modules:
+  vite_cache:
