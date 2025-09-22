@@ -2,7 +2,7 @@
 
 This repository contains the Docker configuration for the Maple Key Music Academy application.
 
-## 🐳 What's Included
+##  What's Included
 
 - **Docker Compose files** for development and production environments
 - **Nginx configuration** with SSL support and reverse proxy setup
@@ -99,3 +99,5 @@ The Nginx setup includes:
 - The production setup assumes SSL certificates are available
 - Database data persists in Docker volumes
 - Logs are available through Docker Compose
+
+

@@ -61,6 +61,11 @@ services:
       - VITE_GOOGLE_CLIENT_ID=578681672265-r7jpu2dumv6129pkapljb7j8ftk29it5.apps.googleusercontent.com
       - WATCHPACK_POLLING=true
       - FAST_REFRESH=true
+      - CHOKIDAR_USEPOLLING=true
+      - VITE_POLLING=true
+      - VITE_HMR_PORT=5173
+    ports:
+      - "5173:5173"
     volumes:
       - ../maple-key-music-academy-frontend:/usr/app
       - node_modules:/usr/app/node_modules
