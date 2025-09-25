@@ -57,7 +57,7 @@ services:
     container_name: maple_key_frontend
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8000/api
+      - VITE_API_URL=http://localhost:8000
       - VITE_GOOGLE_CLIENT_ID=578681672265-r7jpu2dumv6129pkapljb7j8ftk29it5.apps.googleusercontent.com
       - WATCHPACK_POLLING=true
       - FAST_REFRESH=true
