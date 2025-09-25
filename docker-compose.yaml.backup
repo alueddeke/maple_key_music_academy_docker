@@ -67,14 +67,11 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      # Only mount source files for hot reloading
-      - ../maple-key-music-academy-frontend/src:/usr/app/src
-      - ../maple-key-music-academy-frontend/public:/usr/app/public
-      - ../maple-key-music-academy-frontend/index.html:/usr/app/index.html
-      - ../maple-key-music-academy-frontend/vite.config.ts:/usr/app/vite.config.ts
-      # Let Docker handle dependencies automatically
+      - ../maple-key-music-academy-frontend:/usr/app
+      - node_modules:/usr/app/node_modules
       - vite_cache:/usr/app/.vite/cache
 
 volumes:
   postgres_data:
+  node_modules:
   vite_cache:
