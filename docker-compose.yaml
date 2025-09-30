@@ -75,6 +75,30 @@ services:
       # Let Docker handle dependencies automatically
       - vite_cache:/usr/app/.vite/cache
 
+  # API Testing Service
+  api-tests:
+    build:
+      context: ../maple_key_music_academy_backend
+      dockerfile: Dockerfile
+    container_name: maple_key_api_tests
+    env_file:
+      - ./.envs/env.dev
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ../maple_key_music_academy_backend:/usr/app/
+      - test_reports:/usr/app/test_reports/
+    command: |
+      bash -c "
+      python3 manage.py migrate --no-input &&
+      python3 manage.py collectstatic --noinput &&
+      pytest --cov=. --cov-report=html --cov-report=term --junitxml=test_reports/junit.xml --html=test_reports/report.html --self-contained-html
+      "
+    profiles:
+      - testing
+
 volumes:
   postgres_data:
   vite_cache:
+  test_reports:
