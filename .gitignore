@@ -1,4 +1,6 @@
 # Environment files with secrets
+# env.dev and env.prod contain actual credentials and should never be committed
+# Use env.dev.example and env.prod.example as templates
 .envs/env.dev
 .envs/env.prod
 
