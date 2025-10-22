@@ -140,4 +140,128 @@ docker volume ls | grep postgres
 
 ---
 
+## 🏗️ **Development vs Production**
+
+### **File Structure**
+```
+maple_key_music_academy_docker/
+├── docker-compose.yaml          # ← DEVELOPMENT (use this locally)
+├── docker-compose.prod.yaml     # ← PRODUCTION (GitHub Actions uses this)
+├── .envs/
+│   ├── env.dev                  # Local credentials (gitignored)
+│   └── env.prod                 # Production (NOT used - GitHub Secrets instead)
+└── nginx/
+    ├── Dockerfile.dev           # Development proxy config
+    └── Dockerfile.prod          # Production proxy config
+
+../maple-key-music-academy-frontend/
+├── Dockerfile                   # ← PRODUCTION (builds optimized static files)
+└── Dockerfile.dev               # ← DEVELOPMENT (runs Vite dev server)
+```
+
+### **Development (Local Testing)**
+```bash
+# Uses: docker-compose.yaml + Dockerfile.dev
+docker compose up
+
+# What runs:
+# - Frontend: Vite dev server (hot reload) on port 5173
+# - Backend: Django runserver (auto-reload) on port 8000
+# - Database: PostgreSQL exposed on port 5432
+# - Nginx: Proxies everything on port 8000
+
+# Access:
+# http://localhost:5173 - Direct frontend (fastest)
+# http://localhost:8000 - Through Nginx proxy
+```
+
+### **Production (GitHub Actions Deployment)**
+```bash
+# Uses: docker-compose.prod.yaml + Dockerfile
+docker compose -f docker-compose.prod.yaml up -d
+
+# What runs:
+# - Frontend: Nginx serving built files (optimized)
+# - Backend: Gunicorn WSGI server (production-ready)
+# - Database: PostgreSQL (internal only, not exposed)
+# - Nginx: Proxies everything
+
+# This runs automatically on production server when you:
+# 1. Merge to 'production' branch
+# 2. GitHub Actions builds images
+# 3. Deploys to Digital Ocean droplet
+```
+
+### **Key Differences**
+
+| Feature | Development | Production |
+|---------|------------|------------|
+| **Command** | `docker compose up` | `docker compose -f docker-compose.prod.yaml up` |
+| **Frontend** | Vite dev server (Dockerfile.dev) | Nginx serving static files (Dockerfile) |
+| **Backend** | Django runserver | Gunicorn |
+| **Hot Reload** | ✅ Yes | ❌ No |
+| **Source Maps** | ✅ Yes | ❌ No |
+| **Database** | Exposed port 5432 | Internal only |
+| **Deploy** | Manual (`docker compose up`) | Auto (GitHub Actions) |
+
+### **Why Two Setups?**
+
+**Development needs:**
+- Fast feedback (hot reload)
+- Easy debugging (source maps)
+- Quick iterations
+
+**Production needs:**
+- Optimized builds (minified/compressed)
+- Security (no exposed DB, DEBUG=False)
+- Reliability (Gunicorn, not runserver)
+
+---
+
+## 🚀 **Quick Command Reference**
+
+### **Development (You)**
+```bash
+# Start local development
+docker compose up
+
+# Rebuild after dependency changes
+docker compose down && docker compose up --build
+
+# View logs
+docker compose logs -f frontend
+docker compose logs -f api
+```
+
+### **Production (GitHub Actions)**
+```bash
+# You don't run these - GitHub Actions does!
+# But for reference:
+docker compose -f docker-compose.prod.yaml up -d
+docker compose -f docker-compose.prod.yaml down
+```
+
+### **Deployment Workflow**
+```bash
+# 1. Develop locally
+docker compose up
+
+# 2. Commit changes
+git add .
+git commit -m "Add feature"
+git push origin develop
+
+# 3. Create PRs
+# develop → main (code review)
+# main → production (triggers deployment)
+
+# 4. GitHub Actions automatically:
+# - Builds production images
+# - Pushes to Docker Hub
+# - SSHs into server
+# - Runs docker-compose.prod.yaml
+```
+
+---
+
 **Happy coding! 🎵**

@@ -39,13 +39,13 @@ services:
     env_file:
       - ./.envs/env.dev
     volumes:
-      - ../maple_key_music_academy_backend:/usr/app/
+      - ../maple_key_music_academy_backend:/app
     depends_on:
       db:
         condition: service_healthy
     entrypoint: |
       bash -c "
-      python3 manage.py migrate --no-input && 
+      python3 manage.py migrate --no-input &&
       python3 manage.py collectstatic --noinput &&
       python3 manage.py runserver 0.0.0.0:8000"
 
@@ -53,7 +53,7 @@ services:
   frontend:
     build:
       context: ../maple-key-music-academy-frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: maple_key_frontend
     environment:
       - NODE_ENV=development
@@ -68,12 +68,12 @@ services:
       - "5173:5173"
     volumes:
       # Only mount source files for hot reloading
-      - ../maple-key-music-academy-frontend/src:/usr/app/src
-      - ../maple-key-music-academy-frontend/public:/usr/app/public
-      - ../maple-key-music-academy-frontend/index.html:/usr/app/index.html
-      - ../maple-key-music-academy-frontend/vite.config.ts:/usr/app/vite.config.ts
+      - ../maple-key-music-academy-frontend/src:/app/src
+      - ../maple-key-music-academy-frontend/public:/app/public
+      - ../maple-key-music-academy-frontend/index.html:/app/index.html
+      - ../maple-key-music-academy-frontend/vite.config.ts:/app/vite.config.ts
       # Let Docker handle dependencies automatically
-      - vite_cache:/usr/app/.vite/cache
+      - vite_cache:/app/.vite/cache
 
   # API Testing Service
   api-tests:
@@ -87,8 +87,8 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ../maple_key_music_academy_backend:/usr/app/
-      - test_reports:/usr/app/test_reports/
+      - ../maple_key_music_academy_backend:/app
+      - test_reports:/app/test_reports/
     command: |
       bash -c "
       python3 manage.py migrate --no-input &&
