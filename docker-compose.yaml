@@ -57,7 +57,7 @@ services:
     container_name: maple_key_frontend
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8000/api
+      - VITE_API_URL=http://localhost:8000
       - WATCHPACK_POLLING=true
       - FAST_REFRESH=true
       - CHOKIDAR_USEPOLLING=true
