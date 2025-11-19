@@ -1,8 +1,30 @@
-# Maple Key Music Academy - Development Workflow
+# Maple Key Music Academy - Docker Development Environment
+
+This repository contains Docker orchestration for running the complete Maple Key Music Academy stack (backend + frontend + database).
+
+---
+
+## 🚀 New Developer? Start Here!
+
+**This is the Docker orchestration repository.** This is where you run the entire application.
+
+**📖 [DEVELOPER_WORKFLOW.md](../DEVELOPER_WORKFLOW.md)** - **READ THIS FIRST!** Complete guide covering:
+- First-time setup (all 3 repos + environment + Django admin)
+- Daily development workflow
+- Database migrations
+- Feature development
+- Production deployment
+
+**Quick Links:**
+- [First-Time Setup](../DEVELOPER_WORKFLOW.md#first-time-setup) - Step-by-step setup guide
+- [Pulling Latest Changes](../DEVELOPER_WORKFLOW.md#pulling-latest-changes-from-team) - Keeping your environment up to date
+- [Troubleshooting](../DEVELOPER_WORKFLOW.md#troubleshooting) - Common issues and solutions
+
+---
 
 ## 🎯 **Automatic Dependency Management**
 
-Your Docker setup now handles dependencies automatically! No more local `npm install` needed.
+Your Docker setup handles dependencies automatically! No local `npm install` or `pip install` needed.
 
 ## 🚀 **When Pulling Changes with New Dependencies**
 
@@ -261,6 +283,36 @@ git push origin develop
 # - SSHs into server
 # - Runs docker-compose.prod.yaml
 ```
+
+---
+
+---
+
+## 📖 Complete Documentation
+
+**For New Developers:**
+- **[DEVELOPER_WORKFLOW.md](../DEVELOPER_WORKFLOW.md)** - Complete workflow from setup to deployment
+
+**Reference Documentation:**
+- [CLAUDE.md](../CLAUDE.md) - Project architecture and overview
+- [Backend README](../maple_key_music_academy_backend/README.md) - Backend API documentation
+- [Frontend README](../maple-key-music-academy-frontend/README.md) - Frontend documentation
+- [Django Admin Setup](../maple_key_music_academy_backend/docs/DJANGO_ADMIN_SETUP.md) - Required admin configuration
+
+---
+
+## 🆘 Need Help?
+
+**Before asking for help:**
+1. Check [DEVELOPER_WORKFLOW.md - Troubleshooting](../DEVELOPER_WORKFLOW.md#troubleshooting)
+2. Check container logs: `docker compose logs -f`
+3. Try rebuilding: `docker compose down && docker compose build --no-cache && docker compose up`
+
+**When asking for help, provide:**
+- What you were trying to do
+- What happened instead
+- Error messages from logs
+- What you've already tried
 
 ---
 
