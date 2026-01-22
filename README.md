@@ -33,6 +33,15 @@ docker compose up  # Start everything
 
 ---
 
+## 🏛️ Architecture Decision Records
+
+Development and deployment decisions are documented in [ADRs](./docs/adr/README.md).
+
+**Key Infrastructure Decisions:**
+- [DK-0001: Docker-Based Development](./docs/adr/DK-0001-docker-based-development.md) - Container orchestration for development environment
+
+---
+
 ## First-Time Setup
 
 ### Step 1: Clone All Repositories
