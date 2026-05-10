@@ -38,6 +38,8 @@ Detailed reference for deployment, infrastructure, and Docker configuration. Rea
 develop → production (two branches only — main branch has been deleted)
 All development work goes to develop. Deploy by merging develop into production.
 
+**Hotfix rule — NO EXCEPTIONS:** Even urgent production fixes go to develop first, then merge develop → production. Never commit directly to production. Direct production commits caused branch drift and a broken prod incident (2026-05-10). The CI pipeline is the safety net — bypassing develop bypasses the process, not just a convention.
+
 ## Deployment Procedure
 
 ### Backend
