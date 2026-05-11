@@ -173,6 +173,43 @@ docker exec maple-key-backend python manage.py migrate
 
 ---
 
+## Branch Protection Setup (CI-03)
+
+Branch protection on `production` requires one-time manual setup in the GitHub web UI.
+
+### How to Configure
+
+**For both `maple_key_music_academy_backend` and `maple-key-music-academy-frontend` repos:**
+
+1. Go to **Settings → Branches → Add branch protection rule**
+2. Branch name pattern: `production`
+3. Enable these settings:
+   - ✅ **Require a pull request before merging**
+     - ✅ Dismiss stale pull request approvals when new commits are pushed
+   - ✅ **Require status checks to pass before merging**
+     - ✅ Require branches to be up to date before merging
+     - Add required status checks (search by name):
+       - **Backend repo:** `test`
+       - **Frontend repo:** `build_check`
+   - ✅ **Do not allow bypassing the above settings**
+4. Click **Save changes**
+
+### Required Status Check Names
+
+| Repo | Job Name | Defined In |
+|------|----------|-----------|
+| maple_key_music_academy_backend | `test` | `.github/workflows/deploy.yml` |
+| maple-key-music-academy-frontend | `build_check` | `.github/workflows/deploy.yml` |
+
+### Verification
+
+After setup, attempt to push directly to `production` — GitHub should reject with:
+> "protected branch hook declined"
+
+PRs to `production` must have CI green before the merge button is enabled. The required status check names are "test" (backend) and "build_check" (frontend).
+
+---
+
 ## Rollback Procedures
 
 **Option 1 — Git revert (preferred, keeps history):**
