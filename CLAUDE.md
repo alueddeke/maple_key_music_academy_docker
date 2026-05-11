@@ -212,7 +212,31 @@ PRs to `production` must have CI green before the merge button is enabled. The r
 
 ## Rollback Procedures
 
+Rollback is destructive — confirm something is actually broken before proceeding.
+
+### Step 0 — Detect: Confirm Something Is Actually Broken
+
+Before rolling back, verify the issue. Rollback is irreversible for DB restores.
+
+```bash
+# Find the bad deploy tag (to get the commit hash)
+git log --oneline origin/production | grep deploy-
+
+# API health — expect 401 (healthy) or debug if 5xx/000
+curl https://api.maplekeymusic.com/api/auth/user/
+
+# Container errors (SSH first: ssh root@159.203.173.226)
+docker logs maple-key-backend --tail 100 | grep -i error
+
+# All containers running
+docker ps
+```
+
+SSH to the VPS first if checking live containers: `ssh root@159.203.173.226`
+
 **Option 1 — Git revert (preferred, keeps history):**
+
+**Use when:** The bad deploy contains NO database migrations — code-only change.
 
 ```bash
 git revert <commit-hash> --no-edit
@@ -220,6 +244,8 @@ git push origin production
 ```
 
 **Option 2 — Database restore (last resort):**
+
+**Use when:** A migration ran and broke data integrity, OR the migration cannot be reversed forward.
 
 ```bash
 ssh root@159.203.173.226
@@ -230,9 +256,26 @@ docker compose up -d
 
 **Option 3 — Hard reset (nuclear, destroys history):**
 
+**Use when:** Git revert itself fails (e.g., creates conflicts), AND no DB migration was involved.
+
 ```bash
 git reset --hard <previous-commit>
 git push origin production --force
+```
+
+### Post-rollback Verification
+
+Run the same checks as post-deployment to confirm rollback succeeded.
+
+```bash
+# API alive — expect 401
+curl https://api.maplekeymusic.com/api/auth/user/
+
+# Container errors
+docker logs maple-key-backend --tail 100 | grep -i error
+
+# All containers running
+docker ps
 ```
 
 ---
