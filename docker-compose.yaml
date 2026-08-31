@@ -165,6 +165,7 @@ services:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/alerting:/etc/grafana/provisioning/alerting:ro
     # No env_file here on purpose: env.dev holds DB/OAuth secrets that must not
     # leak into the Grafana container. Pass only what Grafana needs.
     environment:
