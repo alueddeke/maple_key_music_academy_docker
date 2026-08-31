@@ -149,7 +149,8 @@ services:
     command:
       - '--path.rootfs=/host'
     volumes:
-      - /:/host:ro,rslave
+      # rslave propagation is Linux-only; plain ro keeps local (macOS) dev working
+      - /:/host:ro
     ports:
       - "127.0.0.1:9100:9100"
     profiles:
