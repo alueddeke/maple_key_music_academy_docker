@@ -1,0 +1,110 @@
+# Provisioned alert rules (observability wave). Contact points/notification
+# policies are configured in the Grafana UI after prod bring-up — rules here
+# fire into the default notification policy until then.
+#
+# Deliberately NOT provisioned yet: p95 latency alert — thresholds get set
+# from a week of observed baseline, not guesses (alert fatigue kills alerting).
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: maplekey-critical
+    folder: MapleKey Alerts
+    interval: 1m
+    rules:
+      - uid: backend-down
+        title: Backend scrape failing (backend down)
+        condition: C
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Prometheus cannot scrape the backend /metrics endpoint.
+          runbook: .planning/OPS-RUNBOOK.md — start at "backend down"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: up{job="maple-key-backend"}
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+
+      - uid: http-5xx-rate
+        title: 5xx error ratio above 1%
+        condition: C
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: More than 1% of requests are failing with 5xx over 5 minutes.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: sum(rate(django_http_responses_total_by_status_total{status=~"5.."}[5m])) / clamp_min(sum(rate(django_http_responses_total_by_status_total[5m])), 1e-9)
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator: { type: gt, params: [0.01] }
+
+      - uid: webhook-failures
+        title: Payment webhook reconciliation failing
+        condition: C
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Helcim webhook events are landing in failure states — payments may not be reconciling. Money alert.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: sum(increase(maplekey_webhook_events_total{outcome=~"enrichment_failed|no_invoice|no_account"}[15m]))
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+
+      - uid: disk-pressure
+        title: Disk usage above 80%
+        condition: C
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Root filesystem above 80% — logs or backups may be filling the disk.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: 1 - (node_filesystem_avail_bytes{mountpoint="/host",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/host",fstype!~"tmpfs|overlay"})
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator: { type: gt, params: [0.8] }

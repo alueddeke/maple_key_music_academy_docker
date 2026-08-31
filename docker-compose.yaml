@@ -104,7 +104,8 @@ services:
   # Prometheus: http://localhost:9090
   # ---------------------------------------------------------------------------
   prometheus:
-    image: prom/prometheus:latest
+    # Pinned (STANDARDS.md: no unpinned images in the deploy path)
+    image: prom/prometheus:v3.5.0
     container_name: maple_key_prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -113,7 +114,7 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=14d'
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     profiles:
       - monitoring
 
@@ -121,7 +122,7 @@ services:
     image: grafana/loki:3.1.0
     container_name: maple_key_loki
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     volumes:
       - ./monitoring/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
@@ -142,19 +143,34 @@ services:
     profiles:
       - monitoring
 
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: maple_key_node_exporter
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      # rslave propagation is Linux-only; plain ro keeps local (macOS) dev working
+      - /:/host:ro
+    ports:
+      - "127.0.0.1:9100:9100"
+    profiles:
+      - monitoring
+
   grafana:
     image: grafana/grafana:11.1.0
     container_name: maple_key_grafana
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/alerting:/etc/grafana/provisioning/alerting:ro
     # No env_file here on purpose: env.dev holds DB/OAuth secrets that must not
     # leak into the Grafana container. Pass only what Grafana needs.
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      # Fail fast: no silent admin/admin default (Nick: no fallbacks on the server)
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:?set GF_SECURITY_ADMIN_PASSWORD in the environment}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_ANALYTICS_REPORTING_ENABLED=false
     depends_on:
