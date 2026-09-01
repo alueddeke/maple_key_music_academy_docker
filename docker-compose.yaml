@@ -49,6 +49,27 @@ services:
       python3 manage.py collectstatic --noinput &&
       python3 manage.py runserver 0.0.0.0:8000"
 
+  # Send-run worker (batch-queue wave): drains InvoiceSendRuns off the
+  # request workers. Same image as api; no migrate on boot (api owns that).
+  # SIGTERM -> finishes the current invoice, then exits; the grace period
+  # covers one send incl. retries.
+  worker:
+    build:
+      context: ../maple_key_music_academy_backend
+      dockerfile: Dockerfile
+    container_name: maple_key_worker
+    env_file:
+      - ./.envs/env.dev
+    volumes:
+      - ../maple_key_music_academy_backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started  # api applies migrations first
+    stop_grace_period: 60s
+    entrypoint: ["python3", "manage.py", "process_invoice_send_runs"]
+
   # React/Vite Frontend
   frontend:
     build:
