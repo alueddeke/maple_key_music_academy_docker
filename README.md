@@ -1,4 +1,42 @@
-# Maple Key Music Academy - Complete Developer Guide
+# Maple Key Music Academy — Docker / Ops
+
+**Start here** (human or AI — this file is the universal entry point for this repo).
+
+Compose orchestration, deployment, and monitoring for the MapleKey stack: a
+Django/DRF money-cycle API + React SPA running a real Toronto music school
+(teacher batch billing, parent pre-billing through Helcim, payroll). Sibling
+repos: `maple_key_music_academy_backend/`, `maple-key-music-academy-frontend/`.
+
+## Run it (dev)
+
+```bash
+make up          # full stack; FIRST BOOT AUTO-SEEDS a demo school
+# sign in at http://localhost:5173 — e2e.manager@maplekeytest.com / testpass123
+make up-empty    # same, but no demo data (DEV_SEED=off)
+make monitor     # + Prometheus/Loki/Grafana (localhost:3000, needs GF_SECURITY_ADMIN_PASSWORD)
+make down
+```
+
+Services: `db` (Postgres) · `api` (Django, migrates on boot) · `worker`
+(send-run drainer — bulk invoice sends happen here, not in request workers) ·
+`frontend` (Vite dev) · `nginx` · monitoring profile (prometheus, loki,
+promtail, grafana, node-exporter).
+
+## The rules that matter most
+
+- Branches: `develop` → `production`. Production pushes are PR-gated and
+  **require explicit human approval**. Hotfixes go develop-first — no exceptions
+  (direct prod commits caused a broken-prod incident).
+- Deploy = backup first (automated pg_dump gate), migrations verified, then
+  container swap. Rollback procedures below — read them BEFORE you need them.
+- Prod runs standalone containers on `maple-key-network` (not compose):
+  `maple-key-backend`, `maple-key-worker`, `postgres`, `nginx`.
+
+The rest of this file is the complete reference (setup → production ops).
+
+---
+
+# Complete Developer Guide
 
 This repository contains Docker orchestration for running the complete Maple Key Music Academy stack (backend + frontend + database).
 
