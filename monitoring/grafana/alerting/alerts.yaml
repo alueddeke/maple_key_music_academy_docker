@@ -125,6 +125,42 @@ groups:
               conditions:
                 - evaluator: { type: gt, params: [0] }
 
+      - uid: send-run-stuck
+        title: Invoice send run stuck
+        condition: C
+        for: 15m
+        # Series absent = worker down (it always exports the gauge while
+        # alive), which is exactly as bad as a stuck queue once a run exists.
+        noDataState: Alerting
+        execErrState: Alerting
+        labels:
+          severity: critical
+        annotations:
+          summary: Send-run items are pending but not draining — worker dead or wedged. Invoices are not going out.
+          runbook: .planning/OPS-RUNBOOK.md — "send run stuck"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: maplekey_send_run_pending_items
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              reducer: last
+              expression: A
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              refId: C
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+
       - uid: disk-pressure
         title: Disk usage above 80%
         condition: C
