@@ -12,6 +12,13 @@ up:
 up-empty:
 	DEV_SEED=off docker compose up --build
 
+# Factory reset: wipe ALL dev data (DB, monitoring volumes) and boot fresh —
+# the next `up` re-runs first-boot auto-seed. This is how you see the
+# new-developer experience; a reclone alone won't (named volumes survive it).
+reset:
+	docker compose down -v
+	$(MAKE) up
+
 # Seed realistic dev data (teachers, students, draft batches). Only wipes
 # @maplekeytest.com accounts — safe to re-run. Anyone cloning this repo can
 # sign in and reach their assigned feature without hand-creating users.
@@ -27,4 +34,4 @@ down:
 test:
 	docker compose --profile testing up --build --abort-on-container-exit api-tests
 
-.PHONY: up up-empty seed monitor down test
+.PHONY: up up-empty reset seed monitor down test

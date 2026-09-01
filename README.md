@@ -13,6 +13,9 @@ repos: `maple_key_music_academy_backend/`, `maple-key-music-academy-frontend/`.
 make up          # full stack; FIRST BOOT AUTO-SEEDS a demo school
 # sign in at http://localhost:5173 — e2e.manager@maplekeytest.com / testpass123
 make up-empty    # same, but no demo data (DEV_SEED=off)
+make reset       # factory reset: wipe dev volumes, fresh boot + auto-seed
+                 # (use this to see the first-boot experience — a reclone
+                 # alone won't; named docker volumes survive recloning)
 make monitor     # + Prometheus/Loki/Grafana (localhost:3000, needs GF_SECURITY_ADMIN_PASSWORD)
 make down
 ```
