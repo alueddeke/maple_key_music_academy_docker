@@ -8,6 +8,13 @@ scrape_configs:
       - targets: ['api:8000']
     metrics_path: '/metrics'
 
+  # Send-run worker: bulk-invoice counters + queue-depth gauge live in the
+  # worker process, not gunicorn — its own /metrics is the only place they
+  # exist. Prod: container name differs (see OPS-RUNBOOK worker bring-up).
+  - job_name: 'send-worker'
+    static_configs:
+      - targets: ['worker:9102']
+
   # Host disk / RAM / CPU — feeds the disk>80% and memory-pressure alerts
   - job_name: 'node'
     static_configs:
