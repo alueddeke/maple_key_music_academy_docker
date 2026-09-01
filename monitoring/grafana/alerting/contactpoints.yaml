@@ -1,0 +1,25 @@
+# Provisioned notification wiring: every alert (all rules in alerts.yaml fire
+# into the default policy) emails Antoni. Delivery needs the GF_SMTP_* env on
+# the grafana service (Resend SMTP bridge); without it rules still evaluate
+# but notify nobody.
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: antoni-email
+    receivers:
+      - uid: antoni-email
+        type: email
+        settings:
+          addresses: antonilueddeke@gmail.com
+          singleEmail: true
+
+policies:
+  - orgId: 1
+    receiver: antoni-email
+    group_by: ['alertname']
+    group_wait: 30s
+    group_interval: 5m
+    # Re-remind every 4h while an alert stays firing — enough to not miss it,
+    # not enough to train inbox-blindness.
+    repeat_interval: 4h

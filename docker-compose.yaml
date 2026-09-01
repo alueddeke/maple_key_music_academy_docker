@@ -202,6 +202,16 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:?set GF_SECURITY_ADMIN_PASSWORD in the environment}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_ANALYTICS_REPORTING_ENABLED=false
+      # Alert email via Resend's SMTP bridge (same account the app sends
+      # invoices through). Off by default: alerting still evaluates, it just
+      # can't notify. Enable with GRAFANA_SMTP_ENABLED=true +
+      # GRAFANA_SMTP_PASSWORD=<resend api key> in the environment.
+      - GF_SMTP_ENABLED=${GRAFANA_SMTP_ENABLED:-false}
+      - GF_SMTP_HOST=smtp.resend.com:587
+      - GF_SMTP_USER=resend
+      - GF_SMTP_PASSWORD=${GRAFANA_SMTP_PASSWORD:-}
+      - GF_SMTP_FROM_ADDRESS=${GRAFANA_SMTP_FROM:-noreply@maplekeymusic.com}
+      - GF_SMTP_FROM_NAME=MapleKey Alerts
     depends_on:
       - prometheus
       - loki
