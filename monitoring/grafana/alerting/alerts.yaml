@@ -4,6 +4,13 @@
 #
 # Deliberately NOT provisioned yet: p95 latency alert — thresholds get set
 # from a week of observed baseline, not guesses (alert fatigue kills alerting).
+#
+# Rule shape (UAT 2026-08-31, D4): every rule is A (query) -> B (reduce last)
+# -> C (threshold on B). Grafana's threshold expression refuses raw time
+# series ("only reduced data can be alerted on"); without the reduce step the
+# rule errors on every evaluation and sits in Alerting(Error) forever while
+# never actually testing the condition. noDataState/execErrState are explicit
+# per rule — don't remove them.
 apiVersion: 1
 
 groups:
@@ -16,6 +23,10 @@ groups:
         title: Backend scrape failing (backend down)
         condition: C
         for: 2m
+        # up{} disappearing entirely means Prometheus itself lost the target
+        # config — that's as bad as the backend being down.
+        noDataState: Alerting
+        execErrState: Alerting
         labels:
           severity: critical
         annotations:
@@ -28,11 +39,18 @@ groups:
             model:
               expr: up{job="maple-key-backend"}
               refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              reducer: last
+              expression: A
+              refId: B
           - refId: C
             datasourceUid: __expr__
             model:
               type: threshold
-              expression: A
+              expression: B
               refId: C
               conditions:
                 - evaluator: { type: lt, params: [1] }
@@ -41,6 +59,10 @@ groups:
         title: 5xx error ratio above 1%
         condition: C
         for: 5m
+        # No 5xx series has ever existed on a healthy deploy — nodata is the
+        # normal quiet state here, not a failure.
+        noDataState: OK
+        execErrState: Alerting
         labels:
           severity: critical
         annotations:
@@ -52,11 +74,18 @@ groups:
             model:
               expr: sum(rate(django_http_responses_total_by_status_total{status=~"5.."}[5m])) / clamp_min(sum(rate(django_http_responses_total_by_status_total[5m])), 1e-9)
               refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              reducer: last
+              expression: A
+              refId: B
           - refId: C
             datasourceUid: __expr__
             model:
               type: threshold
-              expression: A
+              expression: B
               refId: C
               conditions:
                 - evaluator: { type: gt, params: [0.01] }
@@ -65,6 +94,10 @@ groups:
         title: Payment webhook reconciliation failing
         condition: C
         for: 1m
+        # maplekey_webhook_events_total appears on first webhook; before that
+        # (and locally) the series doesn't exist — quiet, not broken.
+        noDataState: OK
+        execErrState: Alerting
         labels:
           severity: critical
         annotations:
@@ -76,11 +109,18 @@ groups:
             model:
               expr: sum(increase(maplekey_webhook_events_total{outcome=~"enrichment_failed|no_invoice|no_account"}[15m]))
               refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              reducer: last
+              expression: A
+              refId: B
           - refId: C
             datasourceUid: __expr__
             model:
               type: threshold
-              expression: A
+              expression: B
               refId: C
               conditions:
                 - evaluator: { type: gt, params: [0] }
@@ -89,6 +129,12 @@ groups:
         title: Disk usage above 80%
         condition: C
         for: 10m
+        # mountpoint="/" only exists where node-exporter sees a real root fs
+        # (the prod droplet). Local macOS Docker Desktop has no such series —
+        # OK keeps local dev quiet. Prod bring-up MUST verify the series
+        # exists (runbook checklist) or this alert is silently blind.
+        noDataState: OK
+        execErrState: Alerting
         labels:
           severity: warning
         annotations:
@@ -98,13 +144,22 @@ groups:
             relativeTimeRange: { from: 600, to: 0 }
             datasourceUid: prometheus
             model:
-              expr: 1 - (node_filesystem_avail_bytes{mountpoint="/host",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/host",fstype!~"tmpfs|overlay"})
+              # With --path.rootfs=/host the mountpoint label is the real
+              # path ("/"), not "/host" — the old filter matched nothing.
+              expr: 1 - (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"})
               refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              reducer: last
+              expression: A
+              refId: B
           - refId: C
             datasourceUid: __expr__
             model:
               type: threshold
-              expression: A
+              expression: B
               refId: C
               conditions:
                 - evaluator: { type: gt, params: [0.8] }
