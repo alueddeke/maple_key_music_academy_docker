@@ -43,10 +43,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    environment:
+      # First boot seeds the demo school so anyone can sign in immediately
+      # (audit item 16). DEV_SEED=off boots with an empty database instead:
+      #   DEV_SEED=off docker compose up -d   (or: make up-empty)
+      # bootstrap_dev no-ops on an already-seeded database — restarts never
+      # wipe working data.
+      - DEV_SEED=${DEV_SEED:-auto}
     entrypoint: |
       bash -c "
       python3 manage.py migrate --no-input &&
       python3 manage.py collectstatic --noinput &&
+      python3 manage.py bootstrap_dev &&
       python3 manage.py runserver 0.0.0.0:8000"
 
   # Send-run worker (batch-queue wave): drains InvoiceSendRuns off the
