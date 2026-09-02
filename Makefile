@@ -25,8 +25,11 @@ reset:
 seed:
 	docker compose exec backend python manage.py seed_realistic
 
+# Local monitoring never notifies: alerting off (prod keeps the compose default
+# of on). To exercise alert rules locally, run the compose command by hand
+# with GRAFANA_ALERTING_ENABLED=true and no GRAFANA_SMTP_* exported.
 monitor:
-	docker compose --profile monitoring up --build
+	GRAFANA_ALERTING_ENABLED=false docker compose --profile monitoring up --build
 
 down:
 	docker compose --profile monitoring down

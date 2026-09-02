@@ -16,7 +16,7 @@ make up-empty    # same, but no demo data (DEV_SEED=off)
 make reset       # factory reset: wipe dev volumes, fresh boot + auto-seed
                  # (use this to see the first-boot experience — a reclone
                  # alone won't; named docker volumes survive recloning)
-make monitor     # + Prometheus/Loki/Grafana (localhost:3000, needs GF_SECURITY_ADMIN_PASSWORD)
+make monitor     # + Prometheus/Loki/Grafana (localhost:3000, needs GF_SECURITY_ADMIN_PASSWORD; alerting off locally)
 make down
 ```
 

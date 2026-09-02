@@ -28,6 +28,7 @@ groups:
         noDataState: Alerting
         execErrState: Alerting
         labels:
+          environment: ${MAPLEKEY_ENV}
           severity: critical
         annotations:
           summary: Prometheus cannot scrape the backend /metrics endpoint.
@@ -64,6 +65,7 @@ groups:
         noDataState: OK
         execErrState: Alerting
         labels:
+          environment: ${MAPLEKEY_ENV}
           severity: critical
         annotations:
           summary: More than 1% of requests are failing with 5xx over 5 minutes.
@@ -99,6 +101,7 @@ groups:
         noDataState: OK
         execErrState: Alerting
         labels:
+          environment: ${MAPLEKEY_ENV}
           severity: critical
         annotations:
           summary: Helcim webhook events are landing in failure states — payments may not be reconciling. Money alert.
@@ -134,6 +137,7 @@ groups:
         noDataState: Alerting
         execErrState: Alerting
         labels:
+          environment: ${MAPLEKEY_ENV}
           severity: critical
         annotations:
           summary: Send-run items are pending but not draining — worker dead or wedged. Invoices are not going out.
@@ -172,6 +176,7 @@ groups:
         noDataState: OK
         execErrState: Alerting
         labels:
+          environment: ${MAPLEKEY_ENV}
           severity: warning
         annotations:
           summary: Root filesystem above 80% — logs or backups may be filling the disk.

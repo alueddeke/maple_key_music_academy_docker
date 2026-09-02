@@ -202,6 +202,15 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:?set GF_SECURITY_ADMIN_PASSWORD in the environment}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_ANALYTICS_REPORTING_ENABLED=false
+      # Alerting is ON by default because prod bring-up is raw compose
+      # (OPS-RUNBOOK script B). Local dev turns it OFF via `make monitor`: a
+      # laptop stack must never page a human (2026-09-02: Mac sleep/wake
+      # NoData cycles emailed a fake "backend down" from the dev Grafana).
+      - GF_UNIFIED_ALERTING_ENABLED=${GRAFANA_ALERTING_ENABLED:-true}
+      # Stamped onto every provisioned alert rule as the `environment` label,
+      # so the email subject says where it came from. Script B exports
+      # MAPLEKEY_ENV=prod; anything else is a dev box.
+      - MAPLEKEY_ENV=${MAPLEKEY_ENV:-local}
       # Alert email via Resend's SMTP bridge (same account the app sends
       # invoices through). Off by default: alerting still evaluates, it just
       # can't notify. Enable with GRAFANA_SMTP_ENABLED=true +
