@@ -30,6 +30,7 @@ Detailed reference for deployment, infrastructure, and Docker configuration. Rea
 3. [ ] Frontend production build passes: `docker compose exec frontend pnpm run build`
 4. [ ] All `@radix-ui/*` dependencies in `package.json` AND installed (see frontend CLAUDE.md)
 5. [ ] Changes committed to git
+6. [ ] Any new/changed secret is in 1Password (vault `Private`) and pushed with `scripts/secrets-sync.sh` — see `.planning/SECRETS-INVENTORY.md` (playbook + `/rotate-secret`)
 
 ---
 
