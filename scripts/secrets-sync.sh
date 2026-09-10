@@ -31,10 +31,9 @@ MAP=(
   "DOCKER_PASSWORD        backend,frontend  Docker Hub Token/credential"
   "VPC_SSH_KEY            backend           Droplet Deploy SSH Key/private key"
   "VPS_SSH_KEY            frontend          Droplet Deploy SSH Key/private key"
-  "BACKEND_SSH_KEY        frontend          Droplet Deploy SSH Key/private key"
 )
 # Not synced on purpose: POSTGRES_DB, HELCIM_SUBDOMAIN, DEFAULT_FROM_EMAIL, *_HOST/_PORT/
-# _USERNAME, ALLOWED_HOSTS, CORS_*, FRONTEND_URL — plain config, not secrets.
+# _USERNAME, ALLOWED_HOSTS, CORS_*, FRONTEND_URL, PLATFORM_ADMIN_EMAILS — plain config, not secrets.
 # Grafana admin password (item "Maple Key Prod Grafana") is read by script B
 # in OPS-RUNBOOK.md, not by GitHub.
 
