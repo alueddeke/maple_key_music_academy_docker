@@ -78,6 +78,25 @@ services:
     stop_grace_period: 60s
     entrypoint: ["python3", "manage.py", "process_invoice_send_runs"]
 
+  # Reconciliation scheduler (MAP-154): retries stuck webhook events every
+  # 15 min, syncs Helcim payments daily, exports the unresolved-events gauge
+  # on 9103. Same image as api; no migrate on boot (api owns that).
+  scheduler:
+    build:
+      context: ../maple_key_music_academy_backend
+      dockerfile: Dockerfile
+    container_name: maple_key_scheduler
+    env_file:
+      - ./.envs/env.dev
+    volumes:
+      - ../maple_key_music_academy_backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started  # api applies migrations first
+    entrypoint: ["python3", "manage.py", "run_scheduler"]
+
   # React/Vite Frontend
   frontend:
     build:
