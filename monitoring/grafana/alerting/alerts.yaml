@@ -171,6 +171,8 @@ groups:
         for: 15m
         # Series absent = worker down (it always exports the gauge while
         # alive), which is exactly as bad as a stuck queue once a run exists.
+        # Scoped to job="send-worker": the API and scheduler processes also
+        # export this gauge (at 0), which would keep the rule out of NoData.
         noDataState: Alerting
         execErrState: Alerting
         labels:
@@ -184,7 +186,7 @@ groups:
             relativeTimeRange: { from: 300, to: 0 }
             datasourceUid: prometheus
             model:
-              expr: maplekey_send_run_pending_items
+              expr: maplekey_send_run_pending_items{job="send-worker"}
               refId: A
           - refId: B
             datasourceUid: __expr__

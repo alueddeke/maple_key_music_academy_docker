@@ -234,8 +234,10 @@ services:
       # invoices through). Off by default: alerting still evaluates, it just
       # can't notify. Enable with GRAFANA_SMTP_ENABLED=true +
       # GRAFANA_SMTP_PASSWORD=<resend api key> in the environment.
+      # Port 2587 (Resend's alternate STARTTLS port): DigitalOcean blocks
+      # outbound 25/465/587 on droplets, so 587 times out in prod.
       - GF_SMTP_ENABLED=${GRAFANA_SMTP_ENABLED:-false}
-      - GF_SMTP_HOST=smtp.resend.com:587
+      - GF_SMTP_HOST=smtp.resend.com:2587
       - GF_SMTP_USER=resend
       - GF_SMTP_PASSWORD=${GRAFANA_SMTP_PASSWORD:-}
       - GF_SMTP_FROM_ADDRESS=${GRAFANA_SMTP_FROM:-noreply@maplekeymusic.com}
