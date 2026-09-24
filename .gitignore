@@ -33,3 +33,7 @@ Thumbs.db
 *.temp
 
 .claude/
+
+# Deploy environment (MAP-191): secrets + plain prod config for deploy-from-laptop.sh
+deployment/deploy.env
+deployment/prod.config.env
