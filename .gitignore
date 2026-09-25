@@ -33,3 +33,6 @@ Thumbs.db
 *.temp
 
 .claude/
+
+# Deploy environment (MAP-191): written by the Actions workflow, never committed
+deployment/deploy.env

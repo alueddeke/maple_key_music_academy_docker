@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Push secrets from the 1Password vault "MapleKey" to GitHub Actions secrets.
+# Push secrets + plain prod config from the 1Password vault "Private" to GitHub Actions secrets.
 # Values travel op -> gh in a pipe and are never echoed.
 #
 #   bash scripts/secrets-sync.sh --check   # show mapping + which items exist, change nothing
@@ -31,9 +31,20 @@ MAP=(
   "DOCKER_PASSWORD        backend,frontend  Docker Hub Token/credential"
   "VPC_SSH_KEY            backend           Droplet Deploy SSH Key/private key"
   "VPS_SSH_KEY            frontend          Droplet Deploy SSH Key/private key"
+  # Plain production config (not secret) — one secure note, one field per variable,
+  # so the laptop deploy path (deployment/deploy-from-laptop.sh) and GitHub read the
+  # same values (MAP-191).
+  "POSTGRES_USER          backend           MapleKey Prod Config/POSTGRES_USER"
+  "POSTGRES_DB            backend           MapleKey Prod Config/POSTGRES_DB"
+  "ALLOWED_HOSTS          backend           MapleKey Prod Config/ALLOWED_HOSTS"
+  "CORS_ALLOWED_ORIGINS   backend           MapleKey Prod Config/CORS_ALLOWED_ORIGINS"
+  "PLATFORM_ADMIN_EMAILS  backend           MapleKey Prod Config/PLATFORM_ADMIN_EMAILS"
+  "FRONTEND_URL           backend           MapleKey Prod Config/FRONTEND_URL"
+  "DEFAULT_FROM_EMAIL     backend           MapleKey Prod Config/DEFAULT_FROM_EMAIL"
+  "HELCIM_SUBDOMAIN       backend           MapleKey Prod Config/HELCIM_SUBDOMAIN"
+  "CERTBOT_EMAIL          backend           MapleKey Prod Config/CERTBOT_EMAIL"
 )
-# Not synced on purpose: POSTGRES_DB, HELCIM_SUBDOMAIN, DEFAULT_FROM_EMAIL, *_HOST/_PORT/
-# _USERNAME, ALLOWED_HOSTS, CORS_*, FRONTEND_URL, PLATFORM_ADMIN_EMAILS — plain config, not secrets.
+# Not synced on purpose: VPC_HOST/_PORT/_USERNAME (droplet address, set once by hand).
 # Grafana admin password (item "Maple Key Prod Grafana") is read by script B
 # in OPS-RUNBOOK.md, not by GitHub.
 

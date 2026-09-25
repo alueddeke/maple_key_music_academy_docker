@@ -16,6 +16,8 @@ Detailed reference for deployment, infrastructure, and Docker configuration. Rea
 
 **Docker containers:**
 - `maple-key-backend` — Django API (Gunicorn)
+- `maple-key-worker` — invoice send-run worker (same image)
+- `maple-key-scheduler` — webhook retry + Helcim sync ticks (same image, MAP-154)
 - `postgres` — PostgreSQL 15
 - `nginx` — reverse proxy
 
@@ -31,6 +33,7 @@ Detailed reference for deployment, infrastructure, and Docker configuration. Rea
 4. [ ] All `@radix-ui/*` dependencies in `package.json` AND installed (see frontend CLAUDE.md)
 5. [ ] Changes committed to git
 6. [ ] Any new/changed secret is in 1Password (vault `Private`) and pushed with `scripts/secrets-sync.sh` — see `.planning/SECRETS-INVENTORY.md` (playbook + `/rotate-secret`)
+7. [ ] Any change to `deployment/*.sh` is merged to this repo's `develop` — the backend workflow checks the scripts out from there at deploy time (MAP-191)
 
 ---
 
@@ -53,11 +56,27 @@ git merge develop
 git push origin production  # triggers GitHub Actions
 ```
 
-GitHub Actions automatically:
-1. Runs `python manage.py migrate` in a temporary container
-2. Verifies all migrations show `[X]` via `showmigrations`
-3. Aborts if any migration fails (prevents code/DB mismatch)
-4. Starts backend container only after migrations succeed
+GitHub Actions (`Deploy Backend Prod`) then runs `test` → `build_and_push` → `deploy`. The deploy job does not carry the shell any more (MAP-191): it checks out **this repo's `develop`**, writes `deployment/deploy.env` from the GitHub secrets (every value `printf %q`-quoted), copies `deployment/` to the droplet and runs `bash ~/deployment/run.sh` — stages `10`–`15` in numbered order:
+
+1. `10-preflight.sh` — docker login, volumes/network, pull the image, postgres up, `pg_isready`, **backup first** (empty file aborts)
+2. `11-migration-gate.sh` — `migrate` + `migrate --check` against the live DB before any container moves
+3. `12-swap-backend.sh` — capture `OLD_IMAGE`, collectstatic, swap, 30 s health poll, roll back to `OLD_IMAGE` on failure
+4. `13-swap-worker.sh` — worker + scheduler (never roll the deploy back)
+5. `14-swap-nginx.sh` — container nginx, host nginx, certbot, ufw
+6. `15-verify.sh` — prune, container + public API check, running image digests
+
+`run.sh` deletes `deploy.env` on exit. Full map: `deployment/README.md`.
+
+**Same deploy from a laptop (GitHub Actions down or disabled):**
+
+```bash
+cd maple_key_music_academy_docker
+op signin
+bash deployment/deploy-from-laptop.sh            # 00 tests → 01 lint → 02 build → 03 push, then 10–15 on the droplet
+bash deployment/deploy-from-laptop.sh --skip-build   # image already on Docker Hub
+```
+
+All 19 values come from 1Password (secrets + the "MapleKey Prod Config" note — the same items `scripts/secrets-sync.sh` pushes to GitHub), streamed over ssh into `~/deployment/deploy.env` without touching the laptop's disk; the scripts and their order are identical to the Actions path, so the container state is the same either way (compare the digests `15-verify.sh` prints). Tag the backend commit afterwards (`deploy-YYYY-MM-DD-HHMM`) — Actions does that step itself.
 
 ### Frontend
 
