@@ -2,22 +2,31 @@
 # Writes deploy.env from the current process environment, quoting every
 # value with bash's own `printf %q` so any character survives being sourced
 # (the MAP-212 lesson: the inline workflow once let bash strip `$…` out of a
-# token). Used by both entry
-# points: the Actions workflow exports the secrets into its step env and
-# calls this; deploy-from-laptop.sh exports them from 1Password and calls
-# this. Never prints a value.
+# token). Used by both entry points: the Actions workflow exports the secrets
+# into its step env and writes a file it then scp's; deploy-from-laptop.sh
+# exports them from 1Password and streams to stdout (`-`) straight into an
+# ssh session, so nothing lands on the laptop's disk. Never prints a value.
 #
-#   write-deploy-env.sh <output-path>
+#   write-deploy-env.sh <output-path>   # file, created 0600
+#   write-deploy-env.sh -               # stdout
 set -euo pipefail
-OUT="${1:?usage: write-deploy-env.sh <output-path>}"
+OUT="${1:?usage: write-deploy-env.sh <output-path|->}"
 . "$(dirname "$0")/_lib.sh"
-
-umask 077
-: > "$OUT"
-for v in "${DEPLOY_REQUIRED_VARS[@]}" IMAGE_TAG; do
-  value="${!v:-}"
-  [ -n "$value" ] || continue
-  printf '%s=%q\n' "$v" "$value" >> "$OUT"
-done
 require_deploy_env
-echo "deploy.env written: $(wc -l < "$OUT") variables"
+
+emit() {
+  for v in "${DEPLOY_REQUIRED_VARS[@]}" IMAGE_TAG; do
+    value="${!v:-}"
+    [ -n "$value" ] || continue
+    printf '%s=%q\n' "$v" "$value"
+  done
+}
+
+if [ "$OUT" = "-" ]; then
+  emit
+  echo "deploy.env streamed: ${#DEPLOY_REQUIRED_VARS[@]} required variables" >&2
+else
+  umask 077
+  emit > "$OUT"
+  echo "deploy.env written: $(wc -l < "$OUT") variables"
+fi

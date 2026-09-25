@@ -56,7 +56,7 @@ git merge develop
 git push origin production  # triggers GitHub Actions
 ```
 
-GitHub Actions (`Deploy Backend Prod`) then runs `test` → `build_and_push` → `deploy`. The deploy job does not carry the shell any more (MAP-191): it checks out **this repo's `develop`**, writes `deployment/deploy.env` from the GitHub secrets (every value single-quoted), copies `deployment/` to the droplet and runs `bash ~/deployment/run.sh` — stages `10`–`15` in numbered order:
+GitHub Actions (`Deploy Backend Prod`) then runs `test` → `build_and_push` → `deploy`. The deploy job does not carry the shell any more (MAP-191): it checks out **this repo's `develop`**, writes `deployment/deploy.env` from the GitHub secrets (every value `printf %q`-quoted), copies `deployment/` to the droplet and runs `bash ~/deployment/run.sh` — stages `10`–`15` in numbered order:
 
 1. `10-preflight.sh` — docker login, volumes/network, pull the image, postgres up, `pg_isready`, **backup first** (empty file aborts)
 2. `11-migration-gate.sh` — `migrate` + `migrate --check` against the live DB before any container moves
@@ -71,13 +71,12 @@ GitHub Actions (`Deploy Backend Prod`) then runs `test` → `build_and_push` →
 
 ```bash
 cd maple_key_music_academy_docker
-cp deployment/prod.config.env.example deployment/prod.config.env   # once; fill the non-secret values
 op signin
 bash deployment/deploy-from-laptop.sh            # 00 tests → 01 lint → 02 build → 03 push, then 10–15 on the droplet
 bash deployment/deploy-from-laptop.sh --skip-build   # image already on Docker Hub
 ```
 
-Secrets come from 1Password (same items `scripts/secrets-sync.sh` maps); the scripts and their order are identical to the Actions path, so the container state is the same either way (compare the digests `15-verify.sh` prints). Tag the backend commit afterwards (`deploy-YYYY-MM-DD-HHMM`) — Actions does that step itself.
+All 19 values come from 1Password (secrets + the "MapleKey Prod Config" note — the same items `scripts/secrets-sync.sh` pushes to GitHub), streamed over ssh into `~/deployment/deploy.env` without touching the laptop's disk; the scripts and their order are identical to the Actions path, so the container state is the same either way (compare the digests `15-verify.sh` prints). Tag the backend commit afterwards (`deploy-YYYY-MM-DD-HHMM`) — Actions does that step itself.
 
 ### Frontend
 
