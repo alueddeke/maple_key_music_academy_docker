@@ -56,7 +56,7 @@ git merge develop
 git push origin production  # triggers GitHub Actions
 ```
 
-GitHub Actions (`Deploy Backend Prod`) then runs `test` → `build_and_push` → `deploy`. The deploy job does not carry the shell any more (MAP-191): it checks out **this repo's `develop`**, writes `deployment/deploy.env` from the GitHub secrets (every value `printf %q`-quoted), copies `deployment/` to the droplet and runs `bash ~/deployment/run.sh` — stages `10`–`15` in numbered order:
+GitHub Actions (`Deploy Backend Prod`) then runs `test` → `build_and_push` → `deploy`. The deploy job does not carry the shell any more (MAP-191): it checks out **this repo's `develop`**, copies `deployment/*.sh` to the droplet, streams `deploy.env` from the GitHub secrets over ssh stdin (`write-deploy-env.sh -`, every value `printf %q`-quoted, written 0600 on the droplet only) and runs `bash ~/deployment/run.sh` — stages `10`–`15` in numbered order:
 
 1. `10-preflight.sh` — docker login, volumes/network, pull the image, postgres up, `pg_isready`, **backup first** (empty file aborts)
 2. `11-migration-gate.sh` — `migrate` + `migrate --check` against the live DB before any container moves
