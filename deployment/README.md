@@ -4,7 +4,7 @@ One deploy, two entry points, same scripts:
 
 | Entry point | Runs 00–03 (laptop) | Runs 10–15 (droplet) | Environment source |
 |---|---|---|---|
-| GitHub Actions `Deploy Backend Prod` (backend repo `.github/workflows/deploy.yml`) | as its own `test` + `build_and_push` jobs | `scp deployment/ deploy.env` → `ssh 'bash ~/deployment/run.sh'` | GitHub Actions secrets → `write-deploy-env.sh` |
+| GitHub Actions `Deploy Backend Prod` (backend repo `.github/workflows/deploy.yml`) | as its own `test` + `build_and_push` jobs | `scp deployment/*.sh`, `write-deploy-env.sh -` streamed over ssh stdin, `ssh 'bash ~/deployment/run.sh'` | GitHub Actions secrets (step `env:`) → `write-deploy-env.sh -` |
 | `bash deployment/deploy-from-laptop.sh` (Actions down or disabled) | yes (`--skip-build` to skip) | same | 1Password (`op read`, secrets + the "MapleKey Prod Config" note) → `write-deploy-env.sh -` streamed over ssh |
 
 Numbering is the ordering contract. Each droplet stage owns its own gate and rollback — nothing here was rebuilt, only extracted from the inline workflow (backup-first, live-DB migration gate, `OLD_IMAGE` health-check rollback were earned by incidents 2026-05-10 / 2026-06-24).
@@ -26,4 +26,4 @@ _lib.sh              required vars, IMAGE, the single BACKEND_ENV array
 write-deploy-env.sh  process env → deploy.env (file, or `-` for stdout), every value `printf %q`-quoted
 ```
 
-`deploy.env` never lives in git and is removed by `run.sh` on exit. The laptop path never writes it to the laptop: `write-deploy-env.sh -` streams it over ssh stdin into `~/deployment/deploy.env` (0600). All 19 values, secrets and plain config alike, come from the 1Password vault `Private`; `scripts/secrets-sync.sh` pushes the same items to GitHub, so both paths read one source.
+`deploy.env` never lives in git and is removed by `run.sh` on exit. Neither entry point writes it locally (the Actions runner's 0600 file could not be read by the scp-action container — first run 2026-09-26): `write-deploy-env.sh -` streams it over ssh stdin into `~/deployment/deploy.env` (0600). All 19 values, secrets and plain config alike, come from the 1Password vault `Private`; `scripts/secrets-sync.sh` pushes the same items to GitHub, so both paths read one source.
