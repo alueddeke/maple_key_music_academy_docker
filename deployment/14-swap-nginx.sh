@@ -124,8 +124,10 @@ sudo systemctl reload nginx
 # ===== SETUP SSL WITH CERTBOT =====
 echo "Setting up SSL certificate..."
 
-# Check if certificate already exists
-if ! sudo certbot certificates 2>/dev/null | grep -q "api.maplekeymusic.com"; then
+# Check if certificate already exists (output captured first — a `| grep -q`
+# under pipefail can go false and re-run the issuance, MAP-230)
+CERTS=$(sudo certbot certificates 2>/dev/null || true)
+if ! grep -q "api.maplekeymusic.com" <<<"$CERTS"; then
   echo "Obtaining new SSL certificate from Let's Encrypt..."
   sudo certbot --nginx \
     --non-interactive \
