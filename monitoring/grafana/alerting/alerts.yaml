@@ -96,8 +96,9 @@ groups:
         title: Payment webhook reconciliation failing
         condition: C
         for: 1m
-        # maplekey_webhook_events_total appears on first webhook; before that
-        # (and locally) the series doesn't exist — quiet, not broken.
+        # Scheduler gauge counted from the DB (MAP-231) — one event fires it.
+        # Series absent = scheduler down, which webhook-unresolved already
+        # alerts on (NoData); quiet here, not broken.
         noDataState: OK
         execErrState: Alerting
         labels:
@@ -110,7 +111,7 @@ groups:
             relativeTimeRange: { from: 900, to: 0 }
             datasourceUid: prometheus
             model:
-              expr: sum(increase(maplekey_webhook_events_total{outcome=~"enrichment_failed|no_invoice|no_account|needs_attention"}[15m]))
+              expr: max(maplekey_webhook_events_failed_15m)
               refId: A
           - refId: B
             datasourceUid: __expr__
