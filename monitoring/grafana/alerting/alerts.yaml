@@ -104,13 +104,13 @@ groups:
           environment: ${MAPLEKEY_ENV}
           severity: critical
         annotations:
-          summary: Helcim webhook events are landing in failure states — payments may not be reconciling. Money alert.
+          summary: 'Helcim webhook events are landing in failure states — payments may not be reconciling. Money alert. — or a payment landed on a superseded invoice number (`needs_attention`: void failed, or the parent paid the old link), or a second payment on an invoice that was already fully paid (not credited; refund by hand). The event''s last_error in admin says which.'
         data:
           - refId: A
             relativeTimeRange: { from: 900, to: 0 }
             datasourceUid: prometheus
             model:
-              expr: sum(increase(maplekey_webhook_events_total{outcome=~"enrichment_failed|no_invoice|no_account"}[15m]))
+              expr: sum(increase(maplekey_webhook_events_total{outcome=~"enrichment_failed|no_invoice|no_account|needs_attention"}[15m]))
               refId: A
           - refId: B
             datasourceUid: __expr__
