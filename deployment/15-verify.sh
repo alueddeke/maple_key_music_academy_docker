@@ -11,8 +11,16 @@ require_deploy_env
 docker image prune -f
 
 # Final verification
+# Capture the names once and match them exactly: `docker ps | grep -q` under
+# pipefail went false when grep's early exit SIGPIPE'd docker (MAP-230), and a
+# substring also matched the image column of other containers.
 sleep 3
-if docker ps | grep -q maple-key-backend && docker ps | grep -q postgres && docker ps | grep -q nginx; then
+names=$(docker ps --format '{{.Names}}') || names=""
+missing=()
+for c in maple-key-backend postgres nginx; do
+  grep -qx "$c" <<<"$names" || missing+=("$c")
+done
+if [ ${#missing[@]} -eq 0 ]; then
   echo "✅ Backend, PostgreSQL, and Nginx deployed successfully!"
   FINAL_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.maplekeymusic.com/api/auth/user/ 2>/dev/null || echo "000")
   echo "Final API health check: HTTP $FINAL_STATUS (expect 401)"
@@ -20,8 +28,8 @@ if docker ps | grep -q maple-key-backend && docker ps | grep -q postgres && dock
     echo "⚠️  API not returning expected status — check logs: docker logs maple-key-backend"
   fi
 else
-  echo "❌ Container check failed!"
-  docker logs maple-key-backend --tail 30 2>/dev/null || true
+  echo "❌ Container check failed! Not running: ${missing[*]}"
+  docker logs maple-key-backend --tail 30 2>&1 || true
   exit 1
 fi
 
