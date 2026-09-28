@@ -20,7 +20,9 @@ docker pull "$IMAGE"
 # ===== ENSURE POSTGRES IS RUNNING =====
 # Reuse the existing container if healthy — don't restart it unnecessarily.
 # Only start a fresh postgres if the container is absent or stopped.
-if ! docker ps --filter "name=^postgres$" --filter "status=running" -q | grep -q .; then
+# Output captured first — a `| grep -q` under pipefail can go false (MAP-230).
+PG_RUNNING=$(docker ps --filter "name=^postgres$" --filter "status=running" -q || true)
+if [ -z "$PG_RUNNING" ]; then
   echo "PostgreSQL not running — starting..."
   docker rm postgres 2>/dev/null || true
   docker run -d \
