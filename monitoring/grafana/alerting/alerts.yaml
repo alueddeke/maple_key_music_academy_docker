@@ -129,6 +129,47 @@ groups:
               conditions:
                 - evaluator: { type: gt, params: [0] }
 
+      - uid: image-split
+        title: Backend image split (backend / worker / scheduler on different shas)
+        condition: C
+        for: 5m
+        # maplekey_image_info{sha} is exported by every backend-image process
+        # (BillingConfig.ready(), MAP-189). A yields the number of distinct
+        # shas across the three scrape jobs; > 1 for 5 min = a deploy left the
+        # containers on different images (a normal swap takes well under a
+        # minute). No series at all = nothing scraped yet; the per-job
+        # NoData alerts already cover a dead process, so quiet here.
+        noDataState: OK
+        execErrState: Alerting
+        labels:
+          environment: ${MAPLEKEY_ENV}
+          severity: critical
+        annotations:
+          summary: maple-key-backend, maple-key-worker and maple-key-scheduler are not all running the same image sha — the invoice-send path may be split across versions. Fix is to re-run the deploy (every container is re-created from one $IMAGE).
+          runbook: .planning/OPS-RUNBOOK.md — "image split"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: count(count by (sha) (maplekey_image_info))
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              reducer: last
+              expression: A
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              refId: C
+              conditions:
+                - evaluator: { type: gt, params: [1] }
+
       - uid: webhook-unresolved
         title: Payment webhook events unresolved for over an hour
         condition: C
