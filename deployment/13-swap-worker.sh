@@ -39,13 +39,16 @@ fi
 # Same image, different entrypoint (MAP-154): retries stuck webhook events
 # every 15 min, reconciles Helcim payments daily, and exports the
 # unresolved-events gauge on 9103 for the 'scheduler' Prometheus job. Same
-# env as the worker; same no-rollback policy.
-docker stop maple-key-scheduler 2>/dev/null || true
+# env as the worker; same no-rollback policy. --stop-timeout 30 lets a tick
+# in flight (a Helcim call times out at 10 s) finish on SIGTERM; an idle
+# scheduler exits at once since its wait is interruptible (MAP-215).
+docker stop --time 30 maple-key-scheduler 2>/dev/null || true
 docker rm maple-key-scheduler 2>/dev/null || true
 
 docker run -d \
   --name maple-key-scheduler \
   --restart unless-stopped \
+  --stop-timeout 30 \
   --network maple-key-network \
   "${BACKEND_ENV[@]}" \
   -e SCHEDULER_METRICS_PORT=9103 \
