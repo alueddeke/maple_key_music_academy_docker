@@ -40,14 +40,20 @@ docker run -d \
   "$IMAGE"
 
 # ===== HEALTH CHECK WITH ROLLBACK =====
-# Poll /api/auth/user/ directly on port 8001 (loopback-bound, bypasses nginx).
-# Expects 401 (auth required) meaning Django/gunicorn is up.
+# Poll /health/ directly on port 8001 (loopback-bound, bypasses nginx) and
+# accept 200 only (MAP-189). django-health-check runs the db, cache, storage,
+# psutil and migrations checks behind that one status: any of them red,
+# including an unapplied migration (health_check.contrib.migrations), is a
+# 500 — and a 500 here rolls the deploy back. That is the intended gate; the
+# migration gate (11) has already applied everything, so a red probe means
+# the new container is genuinely not fit to serve. /health/ is exempt from
+# the HTTPS redirect (SECURE_REDIRECT_EXEMPT), so 301 is not a healthy answer.
 echo "Health checking new backend (30s window)..."
 HEALTHY=false
 for i in $(seq 1 6); do
   sleep 5
-  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/api/auth/user/ 2>/dev/null || echo "000")
-  if [ "$HTTP_STATUS" = "401" ] || [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "301" ]; then
+  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/health/ 2>/dev/null || echo "000")
+  if [ "$HTTP_STATUS" = "200" ]; then
     HEALTHY=true
     echo "✅ Backend healthy (HTTP $HTTP_STATUS) after $((i * 5))s"
     break
@@ -63,11 +69,18 @@ if [ "$HEALTHY" = "false" ]; then
   docker rm maple-key-backend 2>/dev/null || true
   if [ -n "$OLD_IMAGE" ]; then
     echo "Restoring previous image: $OLD_IMAGE"
+    # Same loopback port as the live block so a rolled-back backend is still
+    # reachable on 127.0.0.1:8001 (MAP-189). IMAGE_SHA is overridden with the
+    # tag of the image actually running: BACKEND_ENV carries the new sha, and
+    # a rolled-back backend reporting it would trip the image-split alert
+    # against the worker (which still runs the old image). Last -e wins.
     docker run -d \
       --name maple-key-backend \
       --restart unless-stopped \
       --network maple-key-network \
+      -p 127.0.0.1:8001:8000 \
       "${BACKEND_ENV[@]}" \
+      -e "IMAGE_SHA=${OLD_IMAGE##*:}" \
       -v /var/log/maple-key:/var/log/maple-key \
       -v static_volume:/app/staticfiles \
       "$OLD_IMAGE"

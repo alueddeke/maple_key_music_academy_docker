@@ -29,7 +29,11 @@ require_deploy_env() {
   fi
 }
 
-# Image to deploy. IMAGE_TAG defaults to latest (what every deploy has shipped so far).
+# Image to deploy. Both entry points set IMAGE_TAG to the backend commit sha
+# (Actions: github.sha; laptop: rev-parse of the backend checkout), so $IMAGE
+# is the :<sha> tag build_and_push / 02-build.sh pushed and 15-verify.sh can
+# assert the running containers against it (MAP-189). :latest is only the
+# fallback when nothing set IMAGE_TAG.
 IMAGE="${DOCKER_USERNAME:-}/maple-key-backend:${IMAGE_TAG:-latest}"
 DATABASE_URL="postgresql://${POSTGRES_USER:-}:${POSTGRES_PASSWORD:-}@postgres:5432/${POSTGRES_DB:-}"
 
@@ -57,6 +61,9 @@ BACKEND_ENV=(
   -e "HELCIM_SUBDOMAIN=${HELCIM_SUBDOMAIN:-}"
   -e "ANALYTICS_EXCLUDE_TEST_DATA=True"
   -e "TEST_ACCOUNT_EMAILS=a.lueddeke@hotmail.com"
+  # Exported as maplekey_image_info{sha} by every backend-image process so the
+  # image-split alert can see a backend/worker/scheduler version split (MAP-189).
+  -e "IMAGE_SHA=${IMAGE_TAG:-unknown}"
 )
 
 banner() {

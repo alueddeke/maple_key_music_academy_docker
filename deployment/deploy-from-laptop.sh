@@ -46,7 +46,13 @@ read_secret FRONTEND_URL          "MapleKey Prod Config/FRONTEND_URL"
 read_secret DEFAULT_FROM_EMAIL    "MapleKey Prod Config/DEFAULT_FROM_EMAIL"
 read_secret HELCIM_SUBDOMAIN      "MapleKey Prod Config/HELCIM_SUBDOMAIN"
 read_secret CERTBOT_EMAIL         "MapleKey Prod Config/CERTBOT_EMAIL"
-# Optional: IMAGE_TAG=<sha> in the environment deploys that tag instead of :latest.
+# Deploy the :<sha> tag 02-build.sh pushes — the same checkout, the same
+# rev-parse (MAP-189). IMAGE_TAG already in the environment wins, so an
+# operator can still name a tag explicitly (e.g. --skip-build after a build
+# elsewhere).
+IMAGE_TAG="${IMAGE_TAG:-$(git -C "${BACKEND_DIR:-$HERE/../../maple_key_music_academy_backend}" rev-parse HEAD)}"
+[ -n "$IMAGE_TAG" ] || { echo "❌ IMAGE_TAG empty — backend checkout not found (set BACKEND_DIR)"; exit 1; }
+export IMAGE_TAG
 
 if [ "${1:-}" != "--skip-build" ]; then
   for stage in "$HERE"/0[0-9]-*.sh; do
