@@ -21,7 +21,9 @@ Detailed reference for deployment, infrastructure, and Docker configuration. Rea
 - `postgres` — PostgreSQL 15
 - `nginx` — reverse proxy
 
-**Database:** user `maple_key_user`, database `maple_key_db`, password in production `.env`.
+**Database:** user `maple_key_user`, database `maple_key_db`, password = 1Password `Postgres Prod Password`.
+
+**Every configuration value** (ports, Postgres mount + ownership, images, probes, backups, certs, firewall, alerts, metrics ports, stop timeouts, and where each is set): [`DEPLOY-CONFIG.md`](DEPLOY-CONFIG.md).
 
 **Dev Postgres = prod major version (15)** since MAP-190 (`docker-compose.yaml` `db` was `postgres:14`). A data directory written by 14 does not start under 15, so the first `docker compose up` after pulling this needs a one-time reset:
 `docker compose down -v` (deletes the local dev database) → `docker compose up -d` → `/seed-billing-test`.
