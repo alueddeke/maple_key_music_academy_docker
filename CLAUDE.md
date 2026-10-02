@@ -23,6 +23,10 @@ Detailed reference for deployment, infrastructure, and Docker configuration. Rea
 
 **Database:** user `maple_key_user`, database `maple_key_db`, password in production `.env`.
 
+**Dev Postgres = prod major version (15)** since MAP-190 (`docker-compose.yaml` `db` was `postgres:14`). A data directory written by 14 does not start under 15, so the first `docker compose up` after pulling this needs a one-time reset:
+`docker compose down -v` (deletes the local dev database) → `docker compose up -d` → `/seed-billing-test`.
+Nothing on production changes.
+
 ---
 
 ## Pre-Deployment Checklist — MANDATORY
