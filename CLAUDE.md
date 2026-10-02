@@ -40,23 +40,34 @@ Detailed reference for deployment, infrastructure, and Docker configuration. Rea
 ## Branch Model
 
 develop → production (two branches only — main branch has been deleted)
-All development work goes to develop. Deploy by merging develop into production.
+All development work goes to develop. Deploy by a pull request `develop → production`; the owner's merge of that PR is the deploy trigger.
 
-**Hotfix rule — NO EXCEPTIONS:** Even urgent production fixes go to develop first, then merge develop → production. Never commit directly to production. Direct production commits caused branch drift and a broken prod incident (2026-05-10). The CI pipeline is the safety net — bypassing develop bypasses the process, not just a convention.
+**Hotfix rule — NO EXCEPTIONS:** Even urgent production fixes go to develop first, then the same `develop → production` PR. Never commit directly to production. Direct production commits caused branch drift and a broken prod incident (2026-05-10). The CI pipeline is the safety net — bypassing develop bypasses the process, not just a convention.
+
+**A direct push to `production` is impossible** (MAP-187): branch protection plus the "Production" repository ruleset require a PR with green required checks and block non-fast-forward pushes and branch deletion. See § Production Gate below.
 
 ## Deployment Procedure
 
+Backend and frontend use the same five steps. The production approval gate in the root `.claude/CLAUDE.md` applies before step 4: the owner approves the specific changes in the conversation, and only the owner merges.
+
+1. **Sync `develop` with `production`** — production carries its own merge commits, and the gate requires the head to be up to date with the base. The merge is empty (no file changes):
+   ```bash
+   git -C <repo> fetch origin
+   git -C <repo> checkout develop && git -C <repo> pull --ff-only origin develop
+   git -C <repo> merge --no-edit origin/production   # empty merge
+   git -C <repo> push origin develop
+   ```
+2. **Open the PR** `develop → production`; the body lists one `Closes MAP-xxx` line per fully shipped ticket (`Part of MAP-xxx` for a partly shipped one):
+   ```bash
+   gh pr create --repo alueddeke/<repo> --base production --head develop --title "Production: …" --body-file <body.md>
+   ```
+3. **Required checks green** — backend `test` + `pip-audit`; frontend `build_check` + `quality` + `e2e` (§ Production Gate).
+4. **Owner merges** — `gh pr merge <n> --repo alueddeke/<repo> --merge`. The merge's push to `production` starts the deploy workflow.
+5. **Actions deploys and tags** the commit `deploy-YYYY-MM-DD-HHMM` (best-effort tag step, both repos). Watch the `deploy` job; then run § Post-deployment verification.
+
 ### Backend
 
-```bash
-cd maple_key_music_academy_backend
-git checkout production
-git pull origin production
-git merge develop
-git push origin production  # triggers GitHub Actions
-```
-
-GitHub Actions (`Deploy Backend Prod`) then runs `test` → `build_and_push` → `deploy`. The deploy job does not carry the shell any more (MAP-191): it checks out **this repo's `develop`**, copies `deployment/*.sh` to the droplet, streams `deploy.env` from the GitHub secrets over ssh stdin (`write-deploy-env.sh -`, every value `printf %q`-quoted, written 0600 on the droplet only) and runs `bash ~/deployment/run.sh` — stages `10`–`15` in numbered order:
+GitHub Actions (`Deploy Backend Prod`) runs `test` + `pip-audit` → `build_and_push` → `deploy`. The deploy job does not carry the shell any more (MAP-191): it checks out **this repo's `develop`**, copies `deployment/*.sh` to the droplet, streams `deploy.env` from the GitHub secrets over ssh stdin (`write-deploy-env.sh -`, every value `printf %q`-quoted, written 0600 on the droplet only) and runs `bash ~/deployment/run.sh` — stages `10`–`15` in numbered order:
 
 1. `10-preflight.sh` — docker login, volumes/network, pull the image, postgres up, `pg_isready`, **backup first** (empty file aborts)
 2. `11-migration-gate.sh` — `migrate` + `migrate --check` against the live DB before any container moves
@@ -78,26 +89,24 @@ bash deployment/deploy-from-laptop.sh --skip-build   # image already on Docker H
 
 All 19 values come from 1Password (secrets + the "MapleKey Prod Config" note — the same items `scripts/secrets-sync.sh` pushes to GitHub), streamed over ssh into `~/deployment/deploy.env` without touching the laptop's disk; the scripts and their order are identical to the Actions path, so the container state is the same either way (compare the digests `15-verify.sh` prints). Tag the backend commit afterwards (`deploy-YYYY-MM-DD-HHMM`) — Actions does that step itself.
 
+The deploy runs whatever `deployment/*.sh` is on this repo's `develop` at that moment. This repo's `production` branch is a mirror the owner fast-forwards to `develop` after a deploy that used new scripts; nothing deploys from it.
+
 ### Frontend
 
+Test build first — non-negotiable — then the same five steps:
+
 ```bash
-cd maple-key-music-academy-frontend
-
-# Test build first — non-negotiable
 docker compose exec frontend pnpm run build
-
-git checkout production
-git pull origin production
-git merge develop
-git push origin production  # triggers GitHub Actions
 ```
+
+GitHub Actions (frontend `.github/workflows/deploy.yml`) runs `build_check` → build and push `maple-key-frontend:{latest,<sha>}` → deploy on the frontend droplet (inline SSH script: `OLD_IMAGE`, swap, 30 s health poll on `localhost:3000`, rollback, host nginx, certbot) → tag.
 
 ### Post-deployment verification
 
 ```bash
 ssh root@159.203.173.226
 
-# Migrations applied
+# Migrations applied — verification only; the gate itself is 11-migration-gate.sh (migrate + migrate --check)
 docker exec maple-key-backend python manage.py showmigrations billing | tail -20
 
 # Container errors
@@ -118,21 +127,24 @@ curl https://maplekeymusic.com
 
 ## Database Backup
 
-**Create before every major deployment:**
+**Every backend deploy takes one first:** `10-preflight.sh` writes `~/maplekey-backups/pre-deploy-YYYYMMDD-HHMMSS.sql.gz` before any migration or container change (empty file aborts the deploy; files younger than 30 days are never pruned). A manual one, e.g. before a hand-run data script:
 
 ```bash
 ssh root@159.203.173.226
-docker exec postgres pg_dump -U maple_key_user maple_key_db > backup_$(date +%Y%m%d_%H%M%S).sql
-ls -lh backup_*.sql  # verify size (should be 100KB+)
+docker exec postgres pg_dump -U maple_key_user maple_key_db | gzip > ~/maplekey-backups/manual-$(date -u +%Y%m%d-%H%M%S).sql.gz
+ls -lh ~/maplekey-backups/ | tail -5  # verify size (should be 100KB+)
 ```
 
-**Restore (emergency only):**
+**Restore (emergency only):** the app containers are standalone `docker run` containers, not compose services. Stop the three backend-image containers so nothing writes during the restore; `postgres` stays up (the restore runs through it):
 
 ```bash
-docker compose down
-docker exec -i postgres psql -U maple_key_user -d maple_key_db < backup_YYYYMMDD_HHMMSS.sql
-docker compose up -d
+ssh root@159.203.173.226
+docker stop maple-key-backend maple-key-worker maple-key-scheduler
+gunzip -c ~/maplekey-backups/pre-deploy-YYYYMMDD-HHMMSS.sql.gz | docker exec -i postgres psql -U maple_key_user -d maple_key_db
+docker start maple-key-backend maple-key-worker maple-key-scheduler
 ```
+
+`psql` replays the dump into the existing database; for a clean replay into an emptied schema, rehearse on a scratch database first (`.planning/OPS-RUNBOOK.md` restore drill).
 
 ---
 
@@ -167,7 +179,7 @@ docker compose exec frontend pnpm run build  # read full output
 [ ] 0024_add_school_and_school_settings_models
 ```
 
-GitHub Actions ran `migrate` but found unapplied migrations. Check Actions logs for the specific error — usually a migration conflict. Fix locally, commit, re-deploy.
+`11-migration-gate.sh` ran `migrate`, then `migrate --check` still found unapplied migrations — the deploy aborted before any container moved, so production is unchanged. Check the `deploy` job log for the specific error — usually a migration conflict. Fix locally, commit to `develop`, re-deploy through the PR path.
 
 ### "column already exists"
 
@@ -193,40 +205,16 @@ docker exec maple-key-backend python manage.py migrate
 
 ---
 
-## Branch Protection Setup (CI-03)
+## Production Gate
 
-Branch protection on `production` requires one-time manual setup in the GitHub web UI.
+Configured on GitHub (MAP-187, 2026-09-29; re-read 2026-10-02); changing it is owner-only (the agent's protection PUT is denied). Two layers apply to `production` in the backend and frontend repos, and GitHub enforces their union:
 
-### How to Configure
+| Repo | Classic branch protection — PR required, applies to admins, no force push; required checks (`strict`: head up to date with base) | Repository ruleset "Production" | Effective gate |
+|---|---|---|---|
+| `maple_key_music_academy_backend` | `test`, `pip-audit` | required check `test`; blocks non-fast-forward + deletion | PR + `test` + `pip-audit` |
+| `maple-key-music-academy-frontend` | `build_check`, `quality` | required checks `build_check`, `e2e`; blocks non-fast-forward + deletion | PR + `build_check` + `quality` + `e2e` |
 
-**For both `maple_key_music_academy_backend` and `maple-key-music-academy-frontend` repos:**
-
-1. Go to **Settings → Branches → Add branch protection rule**
-2. Branch name pattern: `production`
-3. Enable these settings:
-   - ✅ **Require a pull request before merging**
-     - ✅ Dismiss stale pull request approvals when new commits are pushed
-   - ✅ **Require status checks to pass before merging**
-     - ✅ Require branches to be up to date before merging
-     - Add required status checks (search by name):
-       - **Backend repo:** `test`
-       - **Frontend repo:** `build_check`
-   - ✅ **Do not allow bypassing the above settings**
-4. Click **Save changes**
-
-### Required Status Check Names
-
-| Repo | Job Name | Defined In |
-|------|----------|-----------|
-| maple_key_music_academy_backend | `test` | `.github/workflows/deploy.yml` |
-| maple-key-music-academy-frontend | `build_check` | `.github/workflows/deploy.yml` |
-
-### Verification
-
-After setup, attempt to push directly to `production` — GitHub should reject with:
-> "protected branch hook declined"
-
-PRs to `production` must have CI green before the merge button is enabled. The required status check names are "test" (backend) and "build_check" (frontend).
+Consequences: the only way onto `production` is a PR `develop → production` with those checks green, merged by the owner; a force push or a reset of `production` is rejected; `strict` is why step 1 of the deployment procedure (empty sync merge) exists. Check the live settings with `gh api repos/alueddeke/<repo>/branches/production/protection --jq .required_status_checks.contexts` and `gh api repos/alueddeke/<repo>/rulesets`.
 
 ---
 
@@ -239,8 +227,10 @@ Rollback is destructive — confirm something is actually broken before proceedi
 Before rolling back, verify the issue. Rollback is irreversible for DB restores.
 
 ```bash
-# Find the bad deploy tag (to get the commit hash)
-git log --oneline origin/production | grep deploy-
+# Deploy tags, newest first (each = the production commit that deploy ran)
+git -C maple_key_music_academy_backend fetch --tags origin
+git -C maple_key_music_academy_backend tag -l 'deploy-*' --sort=-creatordate | head -3
+git -C maple_key_music_academy_backend rev-list -n 1 <deploy-tag>   # commit sha = image tag
 
 # API health — expect 401 (healthy) or debug if 5xx/000
 curl https://api.maplekeymusic.com/api/auth/user/
@@ -248,40 +238,43 @@ curl https://api.maplekeymusic.com/api/auth/user/
 # Container errors (SSH first: ssh root@159.203.173.226)
 docker logs maple-key-backend --tail 100 | grep -i error
 
-# All containers running
-docker ps
+# All containers running, and on which image
+docker ps --format '{{.Names}} {{.Image}}'
 ```
 
 SSH to the VPS first if checking live containers: `ssh root@159.203.173.226`
 
-**Option 1 — Git revert (preferred, keeps history):**
+A deploy whose new backend fails the 30 s `/health/` probe has already rolled itself back: `12-swap-backend.sh` captured `OLD_IMAGE` before the swap and restarted it (worker and scheduler were never swapped). The options below are for a deploy that went green but is wrong.
+
+**Option 1 — Git revert on `develop` (preferred, keeps history):**
 
 **Use when:** The bad deploy contains NO database migrations — code-only change.
 
 ```bash
-git revert <commit-hash> --no-edit
-git push origin production
+git -C <repo> checkout develop && git -C <repo> pull --ff-only origin develop
+git -C <repo> revert <commit-hash> --no-edit      # a merge commit needs -m 1
+git -C <repo> push origin develop
 ```
+
+Then the five-step deployment procedure above (sync → PR `develop → production` → checks → owner merge → Actions deploys). Production never gets a commit `develop` does not have.
 
 **Option 2 — Database restore (last resort):**
 
 **Use when:** A migration ran and broke data integrity, OR the migration cannot be reversed forward.
 
-```bash
-ssh root@159.203.173.226
-docker compose down
-docker exec -i postgres psql -U maple_key_user -d maple_key_db < backup_YYYYMMDD_HHMMSS.sql
-docker compose up -d
-```
+Stop the three backend-image containers, restore through the running `postgres`, start them again — the steps in § Database Backup → Restore. Then deploy code that matches the restored schema (Option 1 or 3).
 
-**Option 3 — Hard reset (nuclear, destroys history):**
+**Option 3 — Image rollback (fastest, no git change; backend):**
 
-**Use when:** Git revert itself fails (e.g., creates conflicts), AND no DB migration was involved.
+**Use when:** Production must be back on the previous build now, and the previous image's code runs against the current schema (no migration in between, or only additive ones). This is `12-swap-backend.sh`'s `OLD_IMAGE` rollback, run on purpose: the same droplet stages, every backend-image container re-created from one older `:<sha>` image.
 
 ```bash
-git reset --hard <previous-commit>
-git push origin production --force
+cd maple_key_music_academy_docker
+op signin
+IMAGE_TAG=<previous deploy's commit sha> bash deployment/deploy-from-laptop.sh --skip-build
 ```
+
+The image is already on Docker Hub (every deploy pushed `:<sha>`). The run takes a fresh backup first, the migration gate is a no-op for an older image, `/health/` gates the swap, and `15-verify.sh` asserts backend, worker and scheduler all run the named image. The environment cannot be rebuilt by hand on the droplet (`deploy.env` is deleted after every run) — that is why the rollback goes through the scripts. Afterwards `production` still names the bad commit: follow with Option 1 so the next deploy does not bring it back.
 
 ### Post-rollback Verification
 
