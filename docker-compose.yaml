@@ -3,7 +3,7 @@
 services:
   # PostgreSQL Database
   db:
-    image: postgres:14
+    image: postgres:15
     container_name: maple_key_db
     env_file:
       - ./.envs/env.dev

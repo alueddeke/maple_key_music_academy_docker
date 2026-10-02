@@ -769,33 +769,34 @@ docker logs nginx -f
 
 ### Rollback (If Needed)
 
+`production` only moves through a PR `develop → production` (branch protection + "Production" ruleset; force pushes are rejected). Full procedure, incl. database restore: `CLAUDE.md` § Rollback Procedures.
+
 **GitHub UI Method:**
 ```bash
-# 1. Go to repo → Commits
+# 1. Go to repo → Commits on develop
 # 2. Find bad commit
-# 3. Click "..." → "Revert"
-# 4. Create PR with revert
-# 5. Merge to production
-# GitHub Actions auto-deploys the rollback
+# 3. Click "..." → "Revert" → PR into develop → merge
+# 4. PR develop → production (sync develop with production first)
+# 5. Required checks green → owner merges → GitHub Actions deploys the rollback
 ```
 
 **Command Line Method:**
 ```bash
-git log --oneline  # Find bad commit
-git revert <commit-sha>
-git push origin production
+git checkout develop && git pull --ff-only origin develop
+git log --oneline            # Find bad commit
+git revert <commit-sha>      # a merge commit needs -m 1
+git push origin develop
+# then: PR develop → production, checks green, owner merges
 ```
 
-**Emergency Manual Rollback on Droplet:**
+**Emergency image rollback (backend, no git change):**
 ```bash
-# SSH into droplet
-ssh user@droplet-ip
-
-# Roll back to previous Docker image
-docker pull username/maple-key-backend:previous-sha
-docker stop maple-key-backend
-docker rm maple-key-backend
-docker run -d --name maple-key-backend ... username/maple-key-backend:previous-sha
+# Re-runs the droplet stages with the previous :<sha> image (already on Docker Hub):
+# backup → migration gate → swap with /health/ check → image-id assertion
+cd maple_key_music_academy_docker
+op signin
+IMAGE_TAG=<previous deploy's commit sha> bash deployment/deploy-from-laptop.sh --skip-build
+# then revert on develop (above) so the next deploy does not bring the bad commit back
 ```
 
 ---

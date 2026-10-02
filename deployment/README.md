@@ -27,3 +27,5 @@ write-deploy-env.sh  process env → deploy.env (file, or `-` for stdout), every
 ```
 
 `deploy.env` never lives in git and is removed by `run.sh` on exit. Neither entry point writes it locally (the Actions runner's 0600 file could not be read by the scp-action container — first run 2026-09-26): `write-deploy-env.sh -` streams it over ssh stdin into `~/deployment/deploy.env` (0600). All 19 values, secrets and plain config alike, come from the 1Password vault `Private`; `scripts/secrets-sync.sh` pushes the same items to GitHub, so both paths read one source.
+
+Ports, probe URLs, image tags, backup path, `deploy.env` lifetime and where each deploy value is set: [`../DEPLOY-CONFIG.md`](../DEPLOY-CONFIG.md).
