@@ -28,10 +28,7 @@ docker rm maple-key-backend 2>/dev/null || true
 docker run -d \
   --name maple-key-backend \
   --restart unless-stopped \
-  --health-cmd "python3 /app/healthcheck.py" \
-  --health-interval 30s \
-  --health-timeout 10s \
-  --health-retries 3 \
+  "${BACKEND_HEALTH[@]}" \
   --network maple-key-network \
   -p 127.0.0.1:8001:8000 \
   "${BACKEND_ENV[@]}" \
@@ -74,9 +71,12 @@ if [ "$HEALTHY" = "false" ]; then
     # tag of the image actually running: BACKEND_ENV carries the new sha, and
     # a rolled-back backend reporting it would trip the image-split alert
     # against the worker (which still runs the old image). Last -e wins.
+    # Same --health-* flags as the live block (MAP-278), so the rolled-back
+    # container shows (healthy) to 15-verify.sh and Grafana like a live one.
     docker run -d \
       --name maple-key-backend \
       --restart unless-stopped \
+      "${BACKEND_HEALTH[@]}" \
       --network maple-key-network \
       -p 127.0.0.1:8001:8000 \
       "${BACKEND_ENV[@]}" \
