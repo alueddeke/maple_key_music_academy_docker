@@ -13,7 +13,7 @@ require_deploy_env
 # consistent with the rolled-back backend). --stop-timeout 60 lets it finish
 # the in-flight invoice on SIGTERM; startup recovery re-queues anything a
 # hard kill left behind.
-docker stop --time 60 maple-key-worker 2>/dev/null || true
+docker stop --timeout 60 maple-key-worker 2>/dev/null || true
 docker rm maple-key-worker 2>/dev/null || true
 
 docker run -d \
@@ -42,7 +42,7 @@ fi
 # env as the worker; same no-rollback policy. --stop-timeout 30 lets a tick
 # in flight (a Helcim call times out at 10 s) finish on SIGTERM; an idle
 # scheduler exits at once since its wait is interruptible (MAP-215).
-docker stop --time 30 maple-key-scheduler 2>/dev/null || true
+docker stop --timeout 30 maple-key-scheduler 2>/dev/null || true
 docker rm maple-key-scheduler 2>/dev/null || true
 
 docker run -d \
