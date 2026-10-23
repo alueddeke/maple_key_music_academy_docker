@@ -66,6 +66,17 @@ BACKEND_ENV=(
   -e "IMAGE_SHA=${IMAGE_TAG:-unknown}"
 )
 
+# Docker health check for the backend API container. One definition so the
+# live container and the rollback container in 12-swap-backend.sh report the
+# same health (MAP-278): a rolled-back backend without it showed no Docker
+# health, so the 15-verify.sh wait and the Grafana container checks degraded.
+BACKEND_HEALTH=(
+  --health-cmd "python3 /app/healthcheck.py"
+  --health-interval 30s
+  --health-timeout 10s
+  --health-retries 3
+)
+
 banner() {
   echo "========================================="
   echo "$1"
