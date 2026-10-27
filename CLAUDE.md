@@ -14,12 +14,20 @@ Detailed reference for deployment, infrastructure, and Docker configuration. Rea
 | Frontend | https://maplekeymusic.com |
 | Backend API | https://api.maplekeymusic.com |
 
-**Docker containers:**
-- `maple-key-backend` — Django API (Gunicorn)
-- `maple-key-worker` — invoice send-run worker (same image)
-- `maple-key-scheduler` — webhook retry + Helcim sync ticks (same image, MAP-154)
-- `postgres` — PostgreSQL 15
-- `nginx` — reverse proxy
+**Docker containers — PROD names use HYPHENS, local dev (`docker-compose.yaml`) uses UNDERSCORES. Never mix them.**
+
+| Role | Production (droplet, `deployment/*.sh`) | Local dev (`docker-compose.yaml`) |
+|---|---|---|
+| Django API | `maple-key-backend` | `maple_key_api` |
+| Send-run worker | `maple-key-worker` | `maple_key_worker` |
+| Scheduler (MAP-154) | `maple-key-scheduler` | — |
+| Postgres 15 | `postgres` | `db` (compose service) |
+| Reverse proxy | `nginx` | `maple_key_nginx` |
+| Monitoring | `maple_key_grafana`, `maple_key_prometheus`, `maple_key_loki`, `maple_key_promtail`, `maple_key_node_exporter` (underscores, both envs) | same |
+
+Prod example: `docker exec maple-key-backend python manage.py showmigrations billing`. Local example: `docker exec maple_key_api pytest tests/`. `No such container: maple_key_api` on the droplet means you used the local name.
+
+**Host OS:** Ubuntu 25.04 (interim, **EOL Jan 2026**, unsupported as of 2026-10-27). Upgrade to 26.04 LTS tracked on MAP-144 (snapshot first, never on a canary/deploy day).
 
 **Database:** user `maple_key_user`, database `maple_key_db`, password = 1Password `Postgres Prod Password`.
 
