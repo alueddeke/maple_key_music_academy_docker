@@ -10,8 +10,10 @@ require_deploy_env
 docker stop nginx 2>/dev/null || true
 docker rm nginx 2>/dev/null || true
 
-rm -rf /tmp/nginx.conf
-cat > /tmp/nginx.conf << 'EOF'
+# Persistent path: /tmp is cleared on reboot, which left the container unable to
+# mount its config after the 2026-10-27 host reboot (API 502 until recreated).
+mkdir -p /etc/maple-key
+cat > /etc/maple-key/nginx.conf << 'EOF'
 server {
     listen 80;
     server_name _;
@@ -57,7 +59,7 @@ docker run -d \
   --restart unless-stopped \
   --network maple-key-network \
   -p 8000:80 \
-  -v /tmp/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
+  -v /etc/maple-key/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
   -v static_volume:/usr/share/nginx/html/static:ro \
   nginx:alpine
 
