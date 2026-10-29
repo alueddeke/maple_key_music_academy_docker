@@ -200,6 +200,10 @@ services:
     restart: unless-stopped
     command:
       - '--path.rootfs=/host'
+      # Nightly backup success marker (MAP-140): scripts/backup_nightly.sh
+      # writes backup.prom here on the host; read through the /host mount.
+      # Absent dir (local dev) = no series, node-exporter keeps running.
+      - '--collector.textfile.directory=/host/var/lib/node_exporter/textfile_collector'
     volumes:
       # rslave propagation is Linux-only; plain ro keeps local (macOS) dev working
       - /:/host:ro
