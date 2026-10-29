@@ -1,0 +1,37 @@
+# PROD copy of prometheus.yml — keep the two in sync. Only the three app
+# targets differ: prod runs the app as standalone `docker run` containers
+# (hyphenated names, docker CLAUDE.md), not compose services. OPS-RUNBOOK
+# script B copies this file over monitoring/prometheus.yml before bring-up
+# (MAP-292: replaces a sed rewrite that stacked a "maple-key-" prefix on
+# every rerun and blinded the worker/scheduler targets 2026-10-27).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'maple-key-backend'
+    static_configs:
+      - targets: ['maple-key-backend:8000']
+    metrics_path: '/metrics'
+
+  # Send-run worker: bulk-invoice counters + queue-depth gauge live in the
+  # worker process, not gunicorn — its own /metrics is the only place they
+  # exist.
+  - job_name: 'send-worker'
+    static_configs:
+      - targets: ['maple-key-worker:9102']
+
+  # Reconciliation scheduler (MAP-154): the unresolved-webhook-events gauge
+  # lives in the scheduler process.
+  - job_name: 'scheduler'
+    static_configs:
+      - targets: ['maple-key-scheduler:9103']
+
+  # Host disk / RAM / CPU — feeds the disk>80% and memory-pressure alerts
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
