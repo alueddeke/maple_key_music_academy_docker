@@ -53,7 +53,7 @@ trap cleanup EXIT
 
 if [ "$SRC" = "--latest-remote" ]; then
   # Same preconditions as backup_nightly.sh (W0-L2).
-  command -v rclone >/dev/null || { echo "rclone not installed (apt-get install -y rclone)" >&2; exit 1; }
+  command -v rclone >/dev/null || { echo "rclone not installed (official .deb from downloads.rclone.org — Ubuntu apt rclone 1.60 is rejected by B2; OPS-RUNBOOK script D)" >&2; exit 1; }
   [ -f "$ENV_FILE" ] || { echo "missing $ENV_FILE (OPS-RUNBOOK script D)" >&2; exit 1; }
   [ "$(file_mode "$ENV_FILE")" = 600 ] || { echo "$ENV_FILE must be mode 600" >&2; exit 1; }
   set -a
