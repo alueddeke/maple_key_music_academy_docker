@@ -1,5 +1,6 @@
 # Provisioned notification wiring: every alert (all rules in alerts.yaml fire
-# into the default policy) emails Antoni. Delivery needs the GF_SMTP_* env on
+# into the default policy) emails both owners, Antoni and Matt, in one message
+# (Grafana separates addresses with ";"). Delivery needs the GF_SMTP_* env on
 # the grafana service (Resend SMTP bridge); without it rules still evaluate
 # but notify nobody.
 apiVersion: 1
@@ -11,7 +12,7 @@ contactPoints:
       - uid: antoni-email
         type: email
         settings:
-          addresses: antonilueddeke@gmail.com
+          addresses: antonilueddeke@gmail.com;Matt.James.morgan97@gmail.com
           singleEmail: true
 
 policies:
