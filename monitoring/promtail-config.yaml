@@ -14,8 +14,11 @@ scrape_configs:
       - host: unix:///var/run/docker.sock
         refresh_interval: 5s
         filters:
+          # Local compose names use underscores; prod app containers are
+          # standalone `docker run` with hyphens (maple-key-backend/worker/
+          # scheduler). Both are needed or prod Loki has no app logs (MAP-307).
           - name: name
-            values: ["maple_key_*"]
+            values: ["maple_key_*", "maple-key-*"]
     relabel_configs:
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)'

@@ -10,14 +10,14 @@ scrape_configs:
 
   # Send-run worker: bulk-invoice counters + queue-depth gauge live in the
   # worker process, not gunicorn — its own /metrics is the only place they
-  # exist. Prod: container name differs (see OPS-RUNBOOK worker bring-up).
+  # exist. Prod container names: monitoring/prometheus.prod.yml.
   - job_name: 'send-worker'
     static_configs:
       - targets: ['worker:9102']
 
   # Reconciliation scheduler (MAP-154): the unresolved-webhook-events gauge
-  # lives in the scheduler process. Prod: container name differs (see
-  # OPS-RUNBOOK script B sed line).
+  # lives in the scheduler process. Prod container names:
+  # monitoring/prometheus.prod.yml.
   - job_name: 'scheduler'
     static_configs:
       - targets: ['scheduler:9103']
