@@ -285,3 +285,43 @@ groups:
               refId: C
               conditions:
                 - evaluator: { type: gt, params: [0.8] }
+
+      - uid: backup-stale
+        title: Nightly backup stale (no off-box backup for 26h)
+        condition: C
+        for: 5m
+        # scripts/backup_nightly.sh writes backup_last_success_timestamp via
+        # node-exporter's textfile collector only after the dump reached the
+        # bucket (MAP-140). No series = no proof a backup exists → Alerting.
+        # Consequence: fires until the first run after install — script D in
+        # OPS-RUNBOOK runs the script once by hand. Local dev has alerting off.
+        noDataState: Alerting
+        execErrState: Alerting
+        labels:
+          environment: ${MAPLEKEY_ENV}
+          severity: critical
+        annotations:
+          summary: No nightly Postgres backup has reached off-box storage in over 26 hours.
+          runbook: .planning/OPS-RUNBOOK.md — "Nightly backup stale"; log /var/log/maplekey-backup.log
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: time() - max(backup_last_success_timestamp)
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              reducer: last
+              expression: A
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              refId: C
+              conditions:
+                - evaluator: { type: gt, params: [93600] }

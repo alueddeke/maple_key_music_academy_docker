@@ -149,6 +149,19 @@ docker exec postgres pg_dump -U maple_key_user maple_key_db | gzip > ~/maplekey-
 ls -lh ~/maplekey-backups/ | tail -5  # verify size (should be 100KB+)
 ```
 
+**Nightly off-box backup (MAP-140):** root's crontab on the droplet runs `scripts/backup_nightly.sh` at 06:30 UTC — `pg_dump` from `postgres` → gzip → verify → encrypt with `age` to a public recipient → upload to the Backblaze B2 bucket (`maplekey-pg-backup-7f3k9q`, region CA East) via rclone → write `backup_last_success_timestamp` to node-exporter's textfile collector (`/var/lib/node_exporter/textfile_collector/backup.prom`). Any failure exits non-zero and leaves the metric alone; the Grafana rule "Nightly backup stale" fires when it is older than 26 h (or missing). Retention is the bucket's, not the script's: Object Lock (compliance, 30 days) blocks deletion by anyone, and the lifecycle rule on `postgres/` hides objects at 30 days and deletes them a day later. The droplet key has no `deleteFiles`, and the droplet holds only the age public recipient — it can neither delete nor read an off-box copy. Local plaintext copies `~/maplekey-backups/nightly-*.sql.gz` are kept 3 days; the bucket is the backup. Install, credentials and the stale-alert walkthrough: `.planning/OPS-RUNBOOK.md` script D; key = 1Password `Maple Key Backup B2 Key` in `/root/.config/maplekey/backup.env` (0600), decryption identity = 1Password `Maple Key Backup age Identity` (never on the droplet), neither in the repo.
+
+```bash
+30 6 * * * /opt/maple_key_music_academy_docker/scripts/backup_nightly.sh >> /var/log/maplekey-backup.log 2>&1
+```
+
+| Backup | Taken by | Where | Retention |
+|---|---|---|---|
+| `pre-deploy-*.sql.gz` | every backend deploy (`10-preflight.sh`) | droplet `~/maplekey-backups/` | 30 days |
+| `nightly-*.sql.gz.age` | cron, `scripts/backup_nightly.sh` | B2 bucket `postgres/`, encrypted (+ plaintext `.sql.gz` on the droplet 3 days) | 30-day lock, deleted at 31 days by the bucket lifecycle rule |
+
+**Restore drill:** `op read 'op://Private/Maple Key Backup age Identity/credential' | ssh root@159.203.173.226 'bash /opt/maple_key_music_academy_docker/scripts/restore_drill.sh --latest-remote'` (or a local `.sql.gz` / `.sql.gz.age` path; encrypted dumps need the identity on stdin) replays one dump into a throwaway `postgres:15` container with no network and no port, checks `billing_user` / `billing_prebillinginvoice` are non-empty and removes the container — the live database is never touched. Run it monthly and after any backup-path change.
+
 **Restore (emergency only):** the app containers are standalone `docker run` containers, not compose services. Stop the three backend-image containers so nothing writes during the restore; `postgres` stays up (the restore runs through it):
 
 ```bash
@@ -158,7 +171,7 @@ gunzip -c ~/maplekey-backups/pre-deploy-YYYYMMDD-HHMMSS.sql.gz | docker exec -i 
 docker start maple-key-backend maple-key-worker maple-key-scheduler
 ```
 
-`psql` replays the dump into the existing database; for a clean replay into an emptied schema, rehearse on a scratch database first (`.planning/OPS-RUNBOOK.md` restore drill).
+`psql` replays the dump into the existing database; for a clean replay into an emptied schema, rehearse first with `scripts/restore_drill.sh`. To restore from the bucket, fetch the object with `rclone copyto offsite:$BACKUP_BUCKET/postgres/<file>.sql.gz.age ~/maplekey-backups/<file>.sql.gz.age` (after `set -a; . /root/.config/maplekey/backup.env; set +a`), then decrypt it with the identity piped from the Mac: `op read 'op://Private/Maple Key Backup age Identity/credential' | ssh root@159.203.173.226 'age -d -i /dev/stdin -o ~/maplekey-backups/<file>.sql.gz ~/maplekey-backups/<file>.sql.gz.age'`.
 
 ---
 
