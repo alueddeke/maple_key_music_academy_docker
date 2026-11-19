@@ -10,7 +10,8 @@ Detailed reference for deployment, infrastructure, and Docker configuration. Rea
 |---|---|
 | IP | 159.203.173.226 |
 | SSH | `ssh root@159.203.173.226` |
-| Platform | Digital Ocean Ubuntu 25.04, NYC3 |
+| Platform | Digital Ocean Ubuntu 26.04.1 LTS, NYC3 |
+| Firewall | DigitalOcean Cloud Firewall `maplekey-backend`: inbound TCP 22, 80, 443 only |
 | Frontend | https://maplekeymusic.com |
 | Backend API | https://api.maplekeymusic.com |
 
@@ -27,7 +28,9 @@ Detailed reference for deployment, infrastructure, and Docker configuration. Rea
 
 Prod example: `docker exec maple-key-backend python manage.py showmigrations billing`. Local example: `docker exec maple_key_api pytest tests/`. `No such container: maple_key_api` on the droplet means you used the local name.
 
-**Host OS:** Ubuntu 25.04 (interim, **EOL Jan 2026**, unsupported as of 2026-10-27). Upgrade to 26.04 LTS tracked on MAP-144 (snapshot first, never on a canary/deploy day).
+**Host OS:** Ubuntu 26.04.1 LTS, kernel 7.0, Docker 29.10.0 (upgraded from 25.04 on 2026-11-19, MAP-144). The Docker and droplet-agent apt sources point at `resolute`.
+
+**Firewall:** DigitalOcean Cloud Firewall `maplekey-backend` (since 2026-11-19, MAP-145) allows inbound TCP 22, 80 and 443 only; outbound is open. Anything that must be reached from outside on another port needs a rule there first (DigitalOcean → Networking → Firewalls). `ufw` on the droplet is **off**, and its saved rules allow only 80 and 443: never run `ufw enable` without first adding `ufw allow 22/tcp`, or SSH is cut off. The container nginx still publishes `0.0.0.0:8000`; the cloud firewall is what keeps it private until MAP-145 binds it to loopback. The frontend droplet has no cloud firewall yet (MAP-145).
 
 **Database:** user `maple_key_user`, database `maple_key_db`, password = 1Password `Postgres Prod Password`.
 
